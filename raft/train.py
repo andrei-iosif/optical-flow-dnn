@@ -21,6 +21,8 @@ import datasets
 
 from torch.utils.tensorboard import SummaryWriter
 
+from clearml import Task
+
 try:
     from torch.cuda.amp import GradScaler
 except:
@@ -134,6 +136,7 @@ class Logger:
 
 
 def train(args):
+    task = Task.init(project_name='RAFT', task_name='initial_training')
 
     model = nn.DataParallel(RAFT(args), device_ids=args.gpus)
     print("Parameter Count: %d" % count_parameters(model))
