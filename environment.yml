@@ -1,0 +1,16 @@
+name: pytorch_flow
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pytorch>=1.6.0
+  - torchvision>=0.7.0
+  - torchaudio
+  - cudatoolkit>=11.2
+  - jupyterlab
+  - matplotlib
+  - scipy
+  - tensorboard
+  - tqdm
+  - opencv
+prefix: pytorch_flow
