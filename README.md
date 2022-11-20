@@ -19,6 +19,20 @@ cd FlyingChairs_release
 wget https://lmb.informatik.uni-freiburg.de/resources/datasets/FlyingChairs/FlyingChairs_train_val.txt
 ```
 
+### FlyingThings3D
+This is a large dataset, so we will need a torrent client. For Linux, it's recommended
+to use **transmission-cli**:
+
+```shell
+sudo apt install transmission-cli
+```
+
+Download the FlyingThings3D subset (RGB images and flow ground truth, ~400 GB unzipped):
+```shell
+transmission-cli https://lmb.informatik.uni-freiburg.de/data/FlyingThings3D_subset/FlyingThings3D_subset_image_clean.tar.bz2.torrent -w ./FlyingThings3D
+transmission-cli https://lmb.informatik.uni-freiburg.de/data/FlyingThings3D_subset/FlyingThings3D_subset_flow.tar.bz2.torrent -w ./FlyingThings3D
+```
+
 ### Sintel
 ```shell
 wget http://files.is.tue.mpg.de/sintel/MPI-Sintel-complete.zip

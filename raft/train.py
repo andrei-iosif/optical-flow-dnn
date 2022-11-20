@@ -1,21 +1,17 @@
 from __future__ import print_function, division
+
 import sys
 
 sys.path.append('core')
 
 import argparse
 import os
-import cv2
-import time
 import numpy as np
-import matplotlib.pyplot as plt
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 
-from torch.utils.data import DataLoader
 from raft import RAFT
 import evaluate
 import datasets
@@ -44,7 +40,7 @@ except:
         def update(self):
             pass
 
-# exclude extremly large displacements
+# exclude extremely large displacements
 MAX_FLOW = 400
 SUM_FREQ = 100
 VAL_FREQ = 5000
@@ -56,7 +52,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
     n_predictions = len(flow_preds)
     flow_loss = 0.0
 
-    # exlude invalid pixels and extremely large diplacements
+    # exclude invalid pixels and extremely large displacements
     mag = torch.sum(flow_gt ** 2, dim=1).sqrt()
     valid = (valid >= 0.5) & (mag < max_flow)
 
