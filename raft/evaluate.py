@@ -177,7 +177,7 @@ if __name__ == '__main__':
     parser.add_argument('--experiment_name', help="Name of experiment (for reproducibility)")
     args = parser.parse_args()
 
-    task = Task.init(project_name='RAFT', task_name=args.experiment_name)
+    task = Task.init(project_name='RAFT', task_name=args.experiment_name, task_type=Task.TaskTypes.testing)
 
     model = torch.nn.DataParallel(RAFT(args))
     model.load_state_dict(torch.load(args.model))
