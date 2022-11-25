@@ -194,6 +194,35 @@ class HD1K(FlowDataset):
             seq_ix += 1
 
 
+class FlyingThingsSubset(FlowDataset):
+    def __init__(self, aug_params=None, root='datasets/FlyingThings3D_subset'):
+        super(FlyingThingsSubset, self).__init__(aug_params)
+
+        for view in ['left', 'right']:
+            image_root = osp.join(root, 'train/image_clean', view)
+            flow_root_forward = osp.join(root, 'train/flow', view, 'into_future')
+            flow_root_backward = osp.join(root, 'train/flow/', view, 'into_past')
+
+            image_list = sorted(os.listdir(image_root))
+            flow_forward = set(os.listdir(flow_root_forward))
+            flow_backward = set(os.listdir(flow_root_backward))
+
+            for i in range(len(image_list)-1):
+                img1 = image_list[i]
+                img2 = image_list[i+1]
+
+                image_path1 = osp.join(image_root, img1)
+                image_path2 = osp.join(image_root, img2)
+
+                if img1.replace('.png', '.flo') in flow_forward:
+                    self.image_list += [ [image_path1, image_path2] ]
+                    self.flow_list += [ osp.join(flow_root_forward, img1.replace('.png', '.flo')) ]
+
+                if img2.replace('.png', '.flo') in flow_backward:
+                    self.image_list += [ [image_path2, image_path1] ]
+                    self.flow_list += [ osp.join(flow_root_backward, img2.replace('.png', '.flo')) ]
+
+
 def fetch_dataloader(args, TRAIN_DS='C+T+K+S+H'):
     """ Create the data loader for the corresponding training set """
 
@@ -203,13 +232,15 @@ def fetch_dataloader(args, TRAIN_DS='C+T+K+S+H'):
 
     elif args.stage == 'things':
         aug_params = {'crop_size': args.image_size, 'min_scale': -0.4, 'max_scale': 0.8, 'do_flip': True}
-        clean_dataset = FlyingThings3D(aug_params, dstype='frames_cleanpass')
-        final_dataset = FlyingThings3D(aug_params, dstype='frames_finalpass')
-        train_dataset = clean_dataset + final_dataset
+        # clean_dataset = FlyingThings3D(aug_params, dstype='frames_cleanpass')
+        # final_dataset = FlyingThings3D(aug_params, dstype='frames_finalpass')
+        # train_dataset = clean_dataset + final_dataset
+        train_dataset = FlyingThingsSubset(aug_params)
 
     elif args.stage == 'sintel':
         aug_params = {'crop_size': args.image_size, 'min_scale': -0.2, 'max_scale': 0.6, 'do_flip': True}
-        things = FlyingThings3D(aug_params, dstype='frames_cleanpass')
+        # things = FlyingThings3D(aug_params, dstype='frames_cleanpass')
+        things = FlyingThings3D(aug_params)
         sintel_clean = MpiSintel(aug_params, split='training', dstype='clean')
         sintel_final = MpiSintel(aug_params, split='training', dstype='final')
 
@@ -225,6 +256,9 @@ def fetch_dataloader(args, TRAIN_DS='C+T+K+S+H'):
     elif args.stage == 'kitti':
         aug_params = {'crop_size': args.image_size, 'min_scale': -0.2, 'max_scale': 0.4, 'do_flip': False}
         train_dataset = KITTI(aug_params, split='training')
+
+    else:
+        raise AttributeError(f"Invalid training stage: {args.stage}")
 
     train_loader = data.DataLoader(train_dataset, batch_size=args.batch_size,
                                    pin_memory=False, shuffle=True, num_workers=4, drop_last=True)

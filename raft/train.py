@@ -136,7 +136,7 @@ class Logger:
 
 
 def train(args):
-    task = Task.init(project_name='RAFT', task_name='initial_training')
+    task = Task.init(project_name='RAFT', task_name=args.name)
 
     # Keep this or replace with DistributedDataParallel?
     model = nn.DataParallel(RAFT(args), device_ids=args.gpus)
@@ -196,7 +196,7 @@ def train(args):
             logger.push(metrics)
 
             if total_steps % VAL_FREQ == VAL_FREQ - 1:
-                PATH = 'checkpoints/%d_%s.pth' % (total_steps + 1, args.name)
+                PATH = 'checkpoints/%d_raft-%s.pth' % (total_steps + 1, args.stage)
                 torch.save(model.state_dict(), PATH)
 
                 results = {}
@@ -221,7 +221,7 @@ def train(args):
                 break
 
     logger.close()
-    PATH = 'checkpoints/%s.pth' % args.name
+    PATH = 'checkpoints/raft-%s.pth' % args.stage
     torch.save(model.state_dict(), PATH)
 
     return PATH
