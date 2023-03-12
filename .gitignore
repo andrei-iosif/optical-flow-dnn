@@ -139,3 +139,6 @@ raft/datasets
 
 # Tensorboard files
 runs/
+
+# Image dump
+dump/
