@@ -132,10 +132,10 @@ dmypy.json
 .idea
 
 # Pytorch checkpoints
-./checkpoints
+checkpoints/
 
 # Symlinks to datasets
-./raft/datasets
+raft/datasets
 
 # Tensorboard files
-./runs
+runs/
