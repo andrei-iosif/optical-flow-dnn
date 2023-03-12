@@ -130,3 +130,12 @@ dmypy.json
 
 # PyCharm
 .idea
+
+# Pytorch checkpoints
+./checkpoints
+
+# Symlinks to datasets
+./raft/datasets
+
+# Tensorboard files
+./runs
