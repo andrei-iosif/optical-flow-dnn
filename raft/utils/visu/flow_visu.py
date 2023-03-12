@@ -8,6 +8,7 @@ def make_colorwheel():
         URL: http://vision.middlebury.edu/flow/flowEval-iccv07.pdf
     Code follows the original C++ source code of Daniel Scharstein.
     Code follows the the Matlab source code of Deqing Sun.
+
     Returns:
         np.ndarray: Color wheel
     """
@@ -54,6 +55,7 @@ def flow_uv_to_colors(u, v, convert_to_bgr=False):
     Applies the flow color wheel to (possibly clipped) flow components u and v.
     According to the C++ source code of Daniel Scharstein
     According to the Matlab source code of Deqing Sun
+
     Args:
         u (np.ndarray): Input horizontal flow of shape [H,W]
         v (np.ndarray): Input vertical flow of shape [H,W]
@@ -87,14 +89,15 @@ def flow_uv_to_colors(u, v, convert_to_bgr=False):
 
 def flow_to_color(flow_uv, clip_flow=None, convert_to_bgr=False, channels_last=True):
     """
-    Expects a two dimensional flow image of shape.
+    Expects a two dimensional flow image of shape [H, W, 2].
+    
     Args:
-        flow_uv (np.ndarray): Flow UV image of shape [H,W,2]
+        flow_uv (np.ndarray): Flow UV image of shape [H, W, 2]
         clip_flow (float, optional): Clip maximum of flow values. Defaults to None.
         convert_to_bgr (bool, optional): Convert output image to BGR. Defaults to False.
-        channels_last(bool, optional): If True, the input flow image is stored as HxWx2; otherwise, it is stored as 2xHxW
+        channels_last(bool, optional): If True, the input flow image is stored as HxWx2; otherwise, it is stored as 2xHxW. Defaults to True.
     Returns:
-        np.ndarray: Flow visualization image of shape [H,W,3]
+        np.ndarray: Flow visualization image of shape [H, W, 3]
     """
     assert flow_uv.ndim == 3, 'input flow must have three dimensions'
     assert (channels_last and flow_uv.shape[2] == 2) or (not channels_last and flow_uv.shape[0] == 2), 'input flow must have shape [H,W,2] or [2,H,W]'

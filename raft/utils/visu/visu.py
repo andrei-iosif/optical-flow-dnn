@@ -4,7 +4,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-from flownet.visu.flow_visu import flow_to_color
+from visu.flow_visu import flow_to_color
 
 
 def inputs_visu(img1, img2, flow, sample_idx, valid_flow_mask=None, output_path=None):
@@ -42,22 +42,34 @@ def inputs_visu(img1, img2, flow, sample_idx, valid_flow_mask=None, output_path=
         plt.show()
 
 
-def predictions_visu(img1, img2, gt_flow, pred_flow, sample_idx, output_path=None, additional_info=""):
+def predictions_visu(img_1, img_2, gt_flow, pred_flow, sample_idx, output_path, additional_info=""):
+    """
+    Create visualization of input images, predicted optical flow and ground truth optical flow.
+
+    Args:
+        img1 (np.ndarray): First input image, with shape [3, H, W]
+        img2 (np.ndarray): Second input image, with shape [3, H, W]
+        gt_flow (np.ndarray): Ground truth optical flow, with shape [2, H, W]
+        pred_flow (np.ndarray): Predicted optical flow, with shape [2, H, W]
+        sample_idx (int): Frame number
+        output_path (str): Path where the visu is saved
+        additional_info (str, optional): _description_. Defaults to "".
+    """
     gt_flow_img = flow_to_color(gt_flow, channels_last=False)
     pred_flow_img = flow_to_color(pred_flow, channels_last=False)
 
-    img1 = img1.transpose(1, 2, 0).astype(np.uint8)
-    img2 = img2.transpose(1, 2, 0).astype(np.uint8)
+    img_1 = img_1.transpose(1, 2, 0).astype(np.uint8)
+    img_2 = img_2.transpose(1, 2, 0).astype(np.uint8)
 
-    height, width = img1.shape[0], img1.shape[1]
+    height, width = img_1.shape[0], img_1.shape[1]
     aspect_ratio = width / height
 
     fig, axes = plt.subplots(2, 2)
 
-    axes[0, 0].imshow(img1)
+    axes[0, 0].imshow(img_1)
     axes[0, 0].set_title(f'Image 1', fontsize=25)
 
-    axes[0, 1].imshow(img2)
+    axes[0, 1].imshow(img_2)
     axes[0, 1].set_title(f'Image 2', fontsize=25)
 
     axes[1, 0].imshow(gt_flow_img)
