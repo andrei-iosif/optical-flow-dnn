@@ -135,3 +135,13 @@ def read_gen(file_name, pil=False):
         else:
             return flow[:, :, :-1]
     return []
+
+def read_flow_from_npz(file_name):
+    flow = np.load(file_name, allow_pickle=False)
+    
+    # Invalid values are represented by NAN
+    valid_mask = np.logical_not(np.isnan(flow['u']))
+
+    # Replace NAN with zeros
+    flow_u, flow_v = np.nan_to_num(flow['u']), np.nan_to_num(flow['v'])
+    return np.dstack((flow_u, flow_v)), valid_mask

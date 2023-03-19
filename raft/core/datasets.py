@@ -6,8 +6,8 @@ import torch.utils.data as data
 import torch.nn.functional as F
 
 import os
-import math
 import random
+import re
 from glob import glob
 import os.path as osp
 
@@ -16,7 +16,16 @@ from utils.augmentor import FlowAugmentor, SparseFlowAugmentor
 
 
 class FlowDataset(data.Dataset):
-    def __init__(self, aug_params=None, sparse=False):
+    def __init__(self, aug_params=None, sparse=False, has_semseg=False, from_npz=False, crop_bottom=False):
+        """ Constructor for FlowDataset class.
+
+        Args:
+            aug_params (_type_, optional): _description_. Defaults to None.
+            sparse (bool, optional): If true, read sparse flow in KITTI format. Defaults to False.
+            has_semseg (bool, optional): If true, read also semantic segmentation GT. Defaults to False.
+            from_npz (bool, optional): If true, read flow from npz files. Defaults to False.
+            crop_bottom (bool, optional): If true, crop bottom part of input images. Defaults to False.
+        """
         self.augmentor = None
         self.sparse = sparse
         if aug_params is not None:
@@ -30,6 +39,11 @@ class FlowDataset(data.Dataset):
         self.flow_list = []
         self.image_list = []
         self.extra_info = []
+
+        self.has_semseg = has_semseg
+        self.semseg_list = []
+        self.from_npz = from_npz
+        self.crop_bottom = crop_bottom
 
     def __getitem__(self, index):
         if self.is_test:
@@ -49,13 +63,17 @@ class FlowDataset(data.Dataset):
                 random.seed(worker_info.id)
                 self.init_seed = True
 
+        # Read flow GT
         index = index % len(self.image_list)
         valid = None
         if self.sparse:
             flow, valid = frame_utils.readFlowKITTI(self.flow_list[index])
+        elif self.from_npz:
+            flow, valid = frame_utils.read_flow_from_npz(self.flow_list[index])
         else:
             flow = frame_utils.read_gen(self.flow_list[index])
 
+        # Read input images
         img1 = frame_utils.read_gen(self.image_list[index][0])
         img2 = frame_utils.read_gen(self.image_list[index][1])
 
@@ -71,12 +89,21 @@ class FlowDataset(data.Dataset):
             img1 = img1[..., :3]
             img2 = img2[..., :3]
 
+        # Crop from the bottom of images and flow GT (used for VIPER dataset)
+        if self.crop_bottom:
+            img1 = img1[:-150, :, :]
+            img2 = img2[:-150, :, :]
+            flow = flow[:-150, :, :]
+            if valid is not None:
+                valid = valid[:-150, :]
+
         if self.augmentor is not None:
             if self.sparse:
                 img1, img2, flow, valid = self.augmentor(img1, img2, flow, valid)
             else:
                 img1, img2, flow = self.augmentor(img1, img2, flow)
 
+        # Create tensors from numpy arrays and permute dimensions => channel-first
         img1 = torch.from_numpy(img1).permute(2, 0, 1).float()
         img2 = torch.from_numpy(img2).permute(2, 0, 1).float()
         flow = torch.from_numpy(flow).permute(2, 0, 1).float()
@@ -180,7 +207,7 @@ class HD1K(FlowDataset):
         super(HD1K, self).__init__(aug_params, sparse=True)
 
         seq_ix = 0
-        while 1:
+        while True:
             flows = sorted(glob(os.path.join(root, 'hd1k_flow_gt', 'flow_occ/%06d_*.png' % seq_ix)))
             images = sorted(glob(os.path.join(root, 'hd1k_input', 'image_2/%06d_*.png' % seq_ix)))
 
@@ -221,6 +248,37 @@ class FlyingThingsSubset(FlowDataset):
                 if img2.replace('.png', '.flo') in flow_backward:
                     self.image_list += [ [image_path2, image_path1] ]
                     self.flow_list += [ osp.join(flow_root_backward, img2.replace('.png', '.flo')) ]
+
+
+class VIPER(FlowDataset):
+    def __init__(self, aug_params=None, root='datasets/VIPER', split='train'):
+        super(VIPER, self).__init__(aug_params, sparse=False, from_npz=True, crop_bottom=True)
+
+        seq_idx = 1
+
+        while True:
+            flow_paths = sorted(glob(os.path.join(root, split, "flow", "%03d" % seq_idx, "%03d_*.npz" % seq_idx)))
+            image_paths = sorted(glob(os.path.join(root, split, "img", "%03d" % seq_idx, "%03d_*.jpg" % seq_idx)))
+            semseg_paths = sorted(glob(os.path.join(root, split, "cls", "%03d" % seq_idx, "%03d_*.png" % seq_idx)))
+            
+            if len(flow_paths) == 0:
+                break
+
+            # assert len(flow_paths) * 2 == len(image_paths), f"Mismatch between number of flow maps ({len(flow_paths)}) and number of images ({len(image_paths)})"
+            assert len(semseg_paths) == len(image_paths), f"Mismatch between number of semseg maps ({len(semseg_paths)}) and number of images ({len(image_paths)})"
+
+            for i in range(len(flow_paths) - 1):
+                frame_id = os.path.basename(flow_paths[i]).split('.')[0]
+                next_frame_id = f"{frame_id[:-1]}1"
+
+                for j in range(len(image_paths) - 1):
+                    if re.search(frame_id, image_paths[j]) is not None and re.search(next_frame_id, image_paths[j + 1]) is not None:
+                        self.flow_list += [flow_paths[i]]
+                        self.image_list += [[image_paths[j], image_paths[j + 1]]]
+                        self.semseg_list += [[semseg_paths[j], semseg_paths[j + 1]]]
+                        break
+
+            seq_idx += 1
 
 
 def fetch_dataloader(args, TRAIN_DS='C+T+K+S+H'):

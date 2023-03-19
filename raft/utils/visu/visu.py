@@ -1,35 +1,47 @@
 import os
 
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
 from visu.flow_visu import flow_to_color
 
 
-def inputs_visu(img1, img2, flow, sample_idx, valid_flow_mask=None, output_path=None):
-    matplotlib.use('TkAgg')
+def inputs_visu(img_1, gt_flow, valid_flow_mask=None, sample_idx=-1, output_path=None):
+    """
+    Create visualization of input images, ground truth optical flow, and optionally, valid mask and/or
+    semantic segmentation ground truth.
 
-    flow_img = flow_to_color(flow)
-    height, width = img1.shape[0], img1.shape[1]
+    Args:
+        img1 (np.ndarray): First input image, with shape [3, H, W]
+        gt_flow (np.ndarray): Ground truth optical flow, with shape [2, H, W]
+        valid_flow_mask (np.ndarray): Optical flow validity mask, with shape [1, H, W]
+        sample_idx (int): Frame number
+        output_path (str): Path where the visu is saved
+    """
+    if valid_flow_mask is not None:
+        gt_flow = gt_flow * valid_flow_mask
+
+    flow_img = flow_to_color(gt_flow, channels_last=False)
+
+    img_1 = img_1.transpose(1, 2, 0).astype(np.uint8)
+    height, width = img_1.shape[0], img_1.shape[1]
     aspect_ratio = width / height
 
     fig, axes = plt.subplots(2, 2)
 
-    axes[0, 0].imshow(img1)
+    axes[0, 0].imshow(img_1)
     axes[0, 0].set_title(f'Image 1', fontsize=25)
 
-    axes[0, 1].imshow(img2)
-    axes[0, 1].set_title(f'Image 2', fontsize=25)
-
-    axes[1, 0].imshow(flow_img)
-    axes[1, 0].set_title(f'GT Flow', fontsize=25)
+    axes[0, 1].imshow(flow_img)
+    axes[0, 1].set_title(f'GT Flow', fontsize=25)
 
     if valid_flow_mask is not None:
-        axes[1, 1].imshow(valid_flow_mask, cmap='gray')
-        axes[1, 1].set_title('Valid flow mask', fontsize=25)
+        axes[1, 0].imshow(valid_flow_mask, cmap='gray')
+        axes[1, 0].set_title('Valid flow mask', fontsize=25)
     else:
-        axes[1, 1].axis('off')
+        axes[1, 0].axis('off')
+
+    axes[1, 1].axis('off')
 
     if output_path is not None:
         os.makedirs(output_path, exist_ok=True)

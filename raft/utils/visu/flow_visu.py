@@ -113,7 +113,8 @@ def flow_to_color(flow_uv, clip_flow=None, convert_to_bgr=False, channels_last=T
         v = flow_uv[1, :, :]
 
     rad = np.sqrt(np.square(u) + np.square(v))
-    rad_max = np.max(rad)
+    # rad_max = np.max(rad)
+    rad_max = np.percentile(rad, 99.9)
     epsilon = 1e-5
     u = u / (rad_max + epsilon)
     v = v / (rad_max + epsilon)
