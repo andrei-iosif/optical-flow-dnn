@@ -11,6 +11,7 @@ DATASETS = {
     'HD1K': datasets.HD1K,
     'KITTI': datasets.KITTI,
     'VIPER': datasets.VIPER,
+    'VirtualKITTI': datasets.VirtualKITTI
 }
 
 def run(args):
@@ -21,11 +22,13 @@ def run(args):
 
     # Create and save visus
     for sample_id in range(len(dataset)):
-        img_1, _, gt_flow, valid_flow_mask = dataset[sample_id]
+        img_1, _, gt_flow, valid_flow_mask, semseg_1, _ = dataset[sample_id]
         img_1 = img_1.cpu().numpy()
         gt_flow = gt_flow.cpu().numpy()
         valid_flow_mask = valid_flow_mask.cpu().numpy()
-        inputs_visu(img_1, gt_flow, valid_flow_mask=valid_flow_mask, sample_idx=sample_id, output_path=args.out)
+        semseg_1 = semseg_1.cpu().numpy()
+        inputs_visu(img_1, gt_flow, valid_flow_mask=valid_flow_mask, semseg_gt=semseg_1, 
+            sample_idx=sample_id, output_path=args.out)
 
 
 if __name__ == '__main__':

@@ -16,14 +16,15 @@ from utils.augmentor import FlowAugmentor, SparseFlowAugmentor
 
 
 class FlowDataset(data.Dataset):
-    def __init__(self, aug_params=None, sparse=False, has_semseg=False, from_npz=False, crop_bottom=False):
+    def __init__(self, aug_params=None, sparse=False, has_semseg=False, from_npz=False, from_png=False, crop_bottom=False):
         """ Constructor for FlowDataset class.
 
         Args:
             aug_params (_type_, optional): _description_. Defaults to None.
             sparse (bool, optional): If true, read sparse flow in KITTI format. Defaults to False.
             has_semseg (bool, optional): If true, read also semantic segmentation GT. Defaults to False.
-            from_npz (bool, optional): If true, read flow from npz files. Defaults to False.
+            from_npz (bool, optional): If true, read flow from npz files (VIPER format). Defaults to False.
+            from_png (bool, optional): If true, read flow from png files (Virtual KITTI format). Defaults to False.
             crop_bottom (bool, optional): If true, crop bottom part of input images. Defaults to False.
         """
         self.augmentor = None
@@ -42,7 +43,9 @@ class FlowDataset(data.Dataset):
 
         self.has_semseg = has_semseg
         self.semseg_list = []
+
         self.from_npz = from_npz
+        self.from_png = from_png
         self.crop_bottom = crop_bottom
 
     def __getitem__(self, index):
@@ -70,9 +73,17 @@ class FlowDataset(data.Dataset):
             flow, valid = frame_utils.readFlowKITTI(self.flow_list[index])
         elif self.from_npz:
             flow, valid = frame_utils.read_flow_from_npz(self.flow_list[index])
+        elif self.from_png:
+            flow, valid = frame_utils.read_vkitti_png_flow(self.flow_list[index])
         else:
             flow = frame_utils.read_gen(self.flow_list[index])
 
+        # Read semseg GT
+        semseg_1, semseg_2 = None, None
+        if self.has_semseg:
+            semseg_1 = np.array(frame_utils.read_gen(self.semseg_list[index][0]).convert('RGB')).astype(np.uint8)
+            semseg_2 = np.array(frame_utils.read_gen(self.semseg_list[index][1]).convert('RGB')).astype(np.uint8)
+  
         # Read input images
         img1 = frame_utils.read_gen(self.image_list[index][0])
         img2 = frame_utils.read_gen(self.image_list[index][1])
@@ -96,6 +107,9 @@ class FlowDataset(data.Dataset):
             flow = flow[:-150, :, :]
             if valid is not None:
                 valid = valid[:-150, :]
+            if semseg_1 is not None:
+                semseg_1 = semseg_1[:-150, :]
+                semseg_2 = semseg_2[:-150, :]
 
         if self.augmentor is not None:
             if self.sparse:
@@ -107,13 +121,19 @@ class FlowDataset(data.Dataset):
         img1 = torch.from_numpy(img1).permute(2, 0, 1).float()
         img2 = torch.from_numpy(img2).permute(2, 0, 1).float()
         flow = torch.from_numpy(flow).permute(2, 0, 1).float()
+        if self.has_semseg:
+            semseg_1 = torch.from_numpy(semseg_1).permute(2, 0, 1).float()
+            semseg_2 = torch.from_numpy(semseg_2).permute(2, 0, 1).float()
 
         if valid is not None:
             valid = torch.from_numpy(valid)
         else:
             valid = (flow[0].abs() < 1000) & (flow[1].abs() < 1000)
 
-        return img1, img2, flow, valid.float()
+        if self.has_semseg:
+            return img1, img2, flow, valid.float(), semseg_1, semseg_2
+        else:
+            return img1, img2, flow, valid.float()
 
     def __rmul__(self, v):
         self.flow_list = v * self.flow_list
@@ -252,7 +272,7 @@ class FlyingThingsSubset(FlowDataset):
 
 class VIPER(FlowDataset):
     def __init__(self, aug_params=None, root='datasets/VIPER', split='train'):
-        super(VIPER, self).__init__(aug_params, sparse=False, from_npz=True, crop_bottom=True)
+        super(VIPER, self).__init__(aug_params, sparse=False, from_npz=True, crop_bottom=True, has_semseg=True)
 
         seq_idx = 1
 
@@ -279,6 +299,27 @@ class VIPER(FlowDataset):
                         break
 
             seq_idx += 1
+
+
+class VirtualKITTI(FlowDataset):
+    def __init__(self, aug_params=None, root='datasets/VirtualKITI'):
+        super(VirtualKITTI, self).__init__(aug_params, from_png=True, has_semseg=True)
+
+        self.scene_ids = [1, 2, 6, 18, 20]
+        self.variants = ['15-deg-left', '15-deg-right', '30-deg-left', '30-deg-right', 'clone',
+            'fog', 'morning', 'overcast', 'rain', 'sunset']
+
+        for scene_id in self.scene_ids:
+            for variant in self.variants:
+                image_paths = sorted(glob(os.path.join(root, f"Scene{scene_id:02d}", variant, "frames", "rgb", "Camera_0", "rgb_*.jpg")))
+                semseg_paths = sorted(glob(os.path.join(root, f"Scene{scene_id:02d}", variant, "frames", "classSegmentation", "Camera_0", "classgt_*.png")))
+                flow_paths = sorted(glob(os.path.join(root, f"Scene{scene_id:02d}", variant, "frames", "forwardFlow", "Camera_0", "flow_*.png")))
+
+                # TODO: improve this; do not read RGB and semseg twice
+                for i in range(len(flow_paths) - 1):
+                    self.flow_list += [flow_paths[i]]
+                    self.image_list += [[image_paths[i], image_paths[i + 1]]]
+                    self.semseg_list += [[semseg_paths[i], semseg_paths[i + 1]]]
 
 
 def fetch_dataloader(args, TRAIN_DS='C+T+K+S+H'):

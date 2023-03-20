@@ -6,7 +6,7 @@ import numpy as np
 from visu.flow_visu import flow_to_color
 
 
-def inputs_visu(img_1, gt_flow, valid_flow_mask=None, sample_idx=-1, output_path=None):
+def inputs_visu(img_1, gt_flow, valid_flow_mask=None, semseg_gt=None, sample_idx=-1, output_path=None):
     """
     Create visualization of input images, ground truth optical flow, and optionally, valid mask and/or
     semantic segmentation ground truth.
@@ -15,6 +15,7 @@ def inputs_visu(img_1, gt_flow, valid_flow_mask=None, sample_idx=-1, output_path
         img1 (np.ndarray): First input image, with shape [3, H, W]
         gt_flow (np.ndarray): Ground truth optical flow, with shape [2, H, W]
         valid_flow_mask (np.ndarray): Optical flow validity mask, with shape [1, H, W]
+        semseg_gt (np.ndarray): Semantic segmentation ground truth, RGB format, shape [3, H, W]
         sample_idx (int): Frame number
         output_path (str): Path where the visu is saved
     """
@@ -33,7 +34,7 @@ def inputs_visu(img_1, gt_flow, valid_flow_mask=None, sample_idx=-1, output_path
     axes[0, 0].set_title(f'Image 1', fontsize=25)
 
     axes[0, 1].imshow(flow_img)
-    axes[0, 1].set_title(f'GT Flow', fontsize=25)
+    axes[0, 1].set_title(f'Flow GT', fontsize=25)
 
     if valid_flow_mask is not None:
         axes[1, 0].imshow(valid_flow_mask, cmap='gray')
@@ -41,7 +42,12 @@ def inputs_visu(img_1, gt_flow, valid_flow_mask=None, sample_idx=-1, output_path
     else:
         axes[1, 0].axis('off')
 
-    axes[1, 1].axis('off')
+    if semseg_gt is not None:
+        semseg_gt = semseg_gt.transpose(1, 2, 0).astype(np.uint8)
+        axes[1, 1].imshow(semseg_gt)
+        axes[1, 1].set_title('Semseg GT', fontsize=25)
+    else:
+        axes[1, 1].axis('off')
 
     if output_path is not None:
         os.makedirs(output_path, exist_ok=True)

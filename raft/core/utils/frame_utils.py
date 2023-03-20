@@ -145,3 +145,21 @@ def read_flow_from_npz(file_name):
     # Replace NAN with zeros
     flow_u, flow_v = np.nan_to_num(flow['u']), np.nan_to_num(flow['v'])
     return np.dstack((flow_u, flow_v)), valid_mask
+
+
+def read_vkitti_png_flow(file_name):
+  "Convert from (H, W, 3) int16 to (H, W, 2) float32 array and valid mask"
+  # Read png to BGR in 16 bit unsigned short
+  bgr = cv2.imread(file_name, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+  h, w, _c = bgr.shape
+  assert bgr.dtype == np.uint16 and _c == 3
+
+  # B channel == invalid flow flag == 0 for sky or other invalid flow
+  valid_mask = bgr[:, :, 0] != 0
+
+  # G, R channels == flow_y, flow_x normalized by height, width and scaled to [0, 2**16 – 1]
+  out_flow = 2.0 / (2**16 - 1.0) * bgr[..., 2:0:-1].astype('f4') - 1
+  out_flow[..., 0] *= w - 1
+  out_flow[..., 1] *= h - 1
+  
+  return out_flow, valid_mask
