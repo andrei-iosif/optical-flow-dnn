@@ -95,7 +95,7 @@ class RAFT(nn.Module):
         hdim = self.hidden_dim
         cdim = self.context_dim
 
-        # run the feature network
+        # Run the feature network
         with autocast(enabled=self.args.mixed_precision):
             fmap1, fmap2 = self.fnet([image1, image2])        
         
@@ -106,39 +106,81 @@ class RAFT(nn.Module):
         else:
             corr_fn = CorrBlock(fmap1, fmap2, radius=self.args.corr_radius)
 
-        # run the context network
+        # Run the context network
         with autocast(enabled=self.args.mixed_precision):
             cnet = self.cnet(image1)
             net, inp = torch.split(cnet, [hdim, cdim], dim=1)
             net = torch.tanh(net)
             inp = torch.relu(inp)
 
+        # Initialize flow (and flow uncertainty)
         coords0, coords1 = self.initialize_flow(image1)
+        flow_variance = None
+        if self.args.uncertainty:
+            N, _, H, W = image1.shape
+            flow_variance = torch.zeros((N, 2, H//8, W//8), device=image1.device)
 
+        # If "warm start" is enabled
         if flow_init is not None:
             coords1 = coords1 + flow_init
 
+        # Run iterative refinement step
         flow_predictions = []
         for itr in range(iters):
             coords1 = coords1.detach()
             corr = corr_fn(coords1) # index correlation volume
 
+            # TODO: check if flow uncertainty makes sense as an additional input to update block
             flow = coords1 - coords0
             with autocast(enabled=self.args.mixed_precision):
-                net, up_mask, delta_flow = self.update_block(net, inp, corr, flow)
+                net, up_mask, flow_out = self.update_block(net, inp, corr, flow)
 
-            # F(t+1) = F(t) + \Delta(t)
-            coords1 = coords1 + delta_flow
+            if self.args.uncertainty:
+                residual_flow, residual_flow_var = flow_out
+                coords1 = coords1 + residual_flow
+                flow_variance = flow_variance + residual_flow_var
 
-            # upsample predictions
-            if up_mask is None:
-                flow_up = upflow8(coords1 - coords0)
+                # Upsample predictions
+                if up_mask is None:
+                    flow_up = upflow8(coords1 - coords0)
+                    flow_var_up = upflow8(flow_variance)
+                else:
+                    # TODO: check if upsampling mask is necessary
+                    # TODO: check if separate upsampling block is needed for flow uncertainty
+                    flow_up = self.upsample_flow(coords1 - coords0, up_mask)
+                    flow_var_up = self.upsample_flow(flow_variance, up_mask)
+                
+                flow_predictions.append((flow_up, flow_var_up))
             else:
-                flow_up = self.upsample_flow(coords1 - coords0, up_mask)
-            
-            flow_predictions.append(flow_up)
+                # F(t+1) = F(t) + \Delta(t)
+                coords1 = coords1 + flow_out
+
+                # Upsample predictions
+                if up_mask is None:
+                    flow_up = upflow8(coords1 - coords0)
+                else:
+                    flow_up = self.upsample_flow(coords1 - coords0, up_mask)
+                
+                flow_predictions.append(flow_up)
 
         if test_mode:
-            return coords1 - coords0, flow_up
+            if self.args.uncertainty:
+                return coords1 - coords0, flow_up, flow_variance, flow_var_up
+            else:
+                return coords1 - coords0, flow_up
             
         return flow_predictions
+
+
+if __name__ == "__main__":
+    from torchinfo import summary
+
+    import argparse
+    args = argparse.Namespace()
+    args.small = False
+    args.mixed_precision = False
+    args.alternate_corr = False
+    args.uncertainty = True
+
+    model = RAFT(args)
+    summary(model, input_size=((1, 3, 288, 960), (1, 3, 288, 960)))

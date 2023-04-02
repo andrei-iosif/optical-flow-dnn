@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 
 class FlowHead(nn.Module):
+    """ Predicts residual flow (u, v), as a point estimate """
     def __init__(self, input_dim=128, hidden_dim=256):
         super(FlowHead, self).__init__()
         self.conv1 = nn.Conv2d(input_dim, hidden_dim, 3, padding=1)
@@ -12,6 +13,29 @@ class FlowHead(nn.Module):
 
     def forward(self, x):
         return self.conv2(self.relu(self.conv1(x)))
+
+class FlowHeadWithUncertainty(nn.Module):
+    """ Predicts residual flow, as a probability distribution.
+    For each flow component, predicts the parameters of the distribution that describes.
+
+    Example: if we assume the output flow has Gaussian distribution, we predict both the mean
+    and the variance of that distribution
+    """
+    def __init__(self, input_dim=128, hidden_dim=256):
+        super(FlowHeadWithUncertainty, self).__init__()
+        self.conv1 = nn.Conv2d(input_dim, hidden_dim, 3, padding=1)
+        self.conv2 = nn.Conv2d(hidden_dim, 4, 3, padding=1)
+        self.relu = nn.ReLU(inplace=True)
+        self.softplus = nn.Softplus()
+
+    def forward(self, x):
+        x = self.conv2(self.relu(self.conv1(x)))
+
+        # Variance is constrained to be positive
+        mean, var = x[:, :2, :, :], x[:, 2:, :, :]
+        var = self.softplus(var)
+
+        return mean, var
 
 class ConvGRU(nn.Module):
     def __init__(self, hidden_dim=128, input_dim=192+128):
@@ -115,9 +139,14 @@ class BasicUpdateBlock(nn.Module):
     def __init__(self, args, hidden_dim=128, input_dim=128):
         super(BasicUpdateBlock, self).__init__()
         self.args = args
+
         self.encoder = BasicMotionEncoder(args)
         self.gru = SepConvGRU(hidden_dim=hidden_dim, input_dim=128+hidden_dim)
-        self.flow_head = FlowHead(hidden_dim, hidden_dim=256)
+
+        if self.args.uncertainty:
+            self.flow_head = FlowHeadWithUncertainty(hidden_dim, hidden_dim=256)
+        else:
+            self.flow_head = FlowHead(hidden_dim, hidden_dim=256)
 
         self.mask = nn.Sequential(
             nn.Conv2d(128, 256, 3, padding=1),
@@ -129,11 +158,9 @@ class BasicUpdateBlock(nn.Module):
         inp = torch.cat([inp, motion_features], dim=1)
 
         net = self.gru(net, inp)
-        delta_flow = self.flow_head(net)
+        flow_out = self.flow_head(net)
 
+        # Not sure if this is really necessary
         # scale mask to balence gradients
         mask = .25 * self.mask(net)
-        return net, mask, delta_flow
-
-
-
+        return net, mask, flow_out

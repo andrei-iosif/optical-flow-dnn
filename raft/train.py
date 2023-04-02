@@ -13,6 +13,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from raft import RAFT
+from losses import LaplacianLogLikelihoodLoss, RaftSequenceLoss
 import evaluate
 import datasets
 
@@ -46,32 +47,32 @@ SUM_FREQ = 100
 VAL_FREQ = 5000
 
 
-def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
-    """ Loss function defined over sequence of flow predictions """
+# def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
+#     """ Loss function defined over sequence of flow predictions """
 
-    n_predictions = len(flow_preds)
-    flow_loss = 0.0
+#     n_predictions = len(flow_preds)
+#     flow_loss = 0.0
 
-    # exclude invalid pixels and extremely large displacements
-    mag = torch.sum(flow_gt ** 2, dim=1).sqrt()
-    valid = (valid >= 0.5) & (mag < max_flow)
+#     # exclude invalid pixels and extremely large displacements
+#     mag = torch.sum(flow_gt ** 2, dim=1).sqrt()
+#     valid = (valid >= 0.5) & (mag < max_flow)
 
-    for i in range(n_predictions):
-        i_weight = gamma ** (n_predictions - i - 1)
-        i_loss = (flow_preds[i] - flow_gt).abs()
-        flow_loss += i_weight * (valid[:, None] * i_loss).mean()
+#     for i in range(n_predictions):
+#         i_weight = gamma ** (n_predictions - i - 1)
+#         i_loss = (flow_preds[i] - flow_gt).abs()
+#         flow_loss += i_weight * (valid[:, None] * i_loss).mean()
 
-    epe = torch.sum((flow_preds[-1] - flow_gt) ** 2, dim=1).sqrt()
-    epe = epe.view(-1)[valid.view(-1)]
+#     epe = torch.sum((flow_preds[-1] - flow_gt) ** 2, dim=1).sqrt()
+#     epe = epe.view(-1)[valid.view(-1)]
 
-    metrics = {
-        'epe': epe.mean().item(),
-        '1px': (epe < 1).float().mean().item(),
-        '3px': (epe < 3).float().mean().item(),
-        '5px': (epe < 5).float().mean().item(),
-    }
+#     metrics = {
+#         'epe': epe.mean().item(),
+#         '1px': (epe < 1).float().mean().item(),
+#         '3px': (epe < 3).float().mean().item(),
+#         '5px': (epe < 5).float().mean().item(),
+#     }
 
-    return flow_loss, metrics
+#     return flow_loss, metrics
 
 
 def count_parameters(model):
@@ -167,12 +168,17 @@ def train(args):
     VAL_FREQ = 5000
     add_noise = True  # TODO: remove if unused
 
+    if args.uncertainty:
+        loss_func = LaplacianLogLikelihoodLoss()
+    else:
+        loss_func = RaftSequenceLoss()
+
     should_keep_training = True
     while should_keep_training:
 
         for i_batch, data_blob in enumerate(train_loader):
             optimizer.zero_grad()
-            image1, image2, flow, valid = [x.cuda() for x in data_blob]
+            image1, image2, flow_gt, valid_flow_mask = [x.cuda() for x in data_blob]
 
             # TODO: move data augmentations to separate class
             # Gaussian noise augmentation
@@ -184,7 +190,8 @@ def train(args):
             # Forward pass (default: 12 iterations)
             flow_predictions = model(image1, image2, iters=args.iters)
 
-            loss, metrics = sequence_loss(flow_predictions, flow, valid, args.gamma)
+            loss, metrics = loss_func(flow_predictions, flow_gt, valid_flow_mask)
+            
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
@@ -196,7 +203,7 @@ def train(args):
             logger.push(metrics)
 
             if total_steps % VAL_FREQ == VAL_FREQ - 1:
-                PATH = 'checkpoints/%d_raft-%s.pth' % (total_steps + 1, args.stage)
+                PATH = os.path.join(args.checkpoint_out, f"{total_steps + 1}_raft-{args.stage}.pth")
                 torch.save(model.state_dict(), PATH)
 
                 results = {}
@@ -221,7 +228,7 @@ def train(args):
                 break
 
     logger.close()
-    PATH = 'checkpoints/raft-%s.pth' % args.stage
+    PATH = os.path.join(args.checkpoint_out, f"raft-{args.stage}.pth")
     torch.save(model.state_dict(), PATH)
 
     return PATH
@@ -232,6 +239,7 @@ if __name__ == '__main__':
     parser.add_argument('--name', default='raft', help="name your experiment")
     parser.add_argument('--stage', help="determines which dataset to use for training")
     parser.add_argument('--restore_ckpt', help="restore checkpoint")
+    parser.add_argument('--checkpoint_out', default="", help="Output folder for checkpoints")
     parser.add_argument('--small', action='store_true', help='use small model')
     parser.add_argument('--validation', type=str, nargs='+')
 
@@ -249,6 +257,7 @@ if __name__ == '__main__':
     parser.add_argument('--dropout', type=float, default=0.0)
     parser.add_argument('--gamma', type=float, default=0.8, help='exponential weighting')
     parser.add_argument('--add_noise', action='store_true')
+    parser.add_argument('--uncertainty', type=bool, default=False, help='Enable flow uncertainty estimation')
     args = parser.parse_args()
 
     torch.manual_seed(1234)
