@@ -167,6 +167,41 @@ def validate_kitti(model, iters=24):
     return {'kitti-epe': epe, 'kitti-f1': f1}
 
 
+@torch.no_grad()
+def validate_viper(model, iters=24):
+    """ Peform validation using the VIPER (val) split """
+    model.eval()
+    results = {}
+   
+    val_dataset = datasets.VIPER(split='val')
+    epe_list = []
+
+    for val_id in range(len(val_dataset)):
+        image1, image2, flow_gt, _ = val_dataset[val_id]
+        image1 = image1[None].cuda()
+        image2 = image2[None].cuda()
+
+        padder = InputPadder(image1.shape)
+        image1, image2 = padder.pad(image1, image2)
+
+        flow_low, flow_pr = model(image1, image2, iters=iters, test_mode=True)
+        flow = padder.unpad(flow_pr[0]).cpu()
+
+        epe = torch.sum((flow - flow_gt)**2, dim=0).sqrt()
+        epe_list.append(epe.view(-1).numpy())
+
+    epe_all = np.concatenate(epe_list)
+    epe = np.mean(epe_all)
+    px1 = np.mean(epe_all<1)
+    px3 = np.mean(epe_all<3)
+    px5 = np.mean(epe_all<5)
+
+    print("Validation (%s) EPE: %f, 1px: %f, 3px: %f, 5px: %f" % ("VIPER val", epe, px1, px3, px5))
+    results["VIPER val EPE"] = np.mean(epe_list)
+
+    return results
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', help="restore checkpoint")

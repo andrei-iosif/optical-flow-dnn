@@ -65,6 +65,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
     epe = epe.view(-1)[valid.view(-1)]
 
     metrics = {
+        'loss': flow_loss.item(),
         'epe': epe.mean().item(),
         '1px': (epe < 1).float().mean().item(),
         '3px': (epe < 3).float().mean().item(),
@@ -97,7 +98,8 @@ class Logger:
         self.writer = None
 
     def _print_training_status(self):
-        metrics_data = [self.running_loss[k] / SUM_FREQ for k in sorted(self.running_loss.keys())]
+        # metrics_data = [self.running_loss[k] / SUM_FREQ for k in sorted(self.running_loss.keys())]
+        metrics_data = [self.running_loss[k] / SUM_FREQ for k in self.running_loss.keys()]
         training_str = "[{:6d}, {:10.7f}] ".format(self.total_steps + 1, self.scheduler.get_last_lr()[0])
         metrics_str = ("{:10.4f}, " * len(metrics_data)).format(*metrics_data)
 
@@ -196,7 +198,7 @@ def train(args):
             logger.push(metrics)
 
             if total_steps % VAL_FREQ == VAL_FREQ - 1:
-                PATH = 'checkpoints/%d_raft-%s.pth' % (total_steps + 1, args.stage)
+                PATH = os.path.join(args.checkpoint_out, f"{total_steps + 1}_raft-{args.stage}.pth")
                 torch.save(model.state_dict(), PATH)
 
                 results = {}
@@ -207,6 +209,10 @@ def train(args):
                         results.update(evaluate.validate_sintel(model.module))
                     elif val_dataset == 'kitti':
                         results.update(evaluate.validate_kitti(model.module))
+                    elif val_dataset == 'viper':
+                        results.update(evaluate.validate_viper(model.module))
+                    else:
+                        raise AttributeError(f"Invalid validation dataset: {val_dataset}")
 
                 logger.write_dict(results)
 
@@ -221,7 +227,7 @@ def train(args):
                 break
 
     logger.close()
-    PATH = 'checkpoints/raft-%s.pth' % args.stage
+    PATH = os.path.join(args.checkpoint_out, f"raft-{args.stage}.pth")
     torch.save(model.state_dict(), PATH)
 
     return PATH
@@ -232,6 +238,7 @@ if __name__ == '__main__':
     parser.add_argument('--name', default='raft', help="name your experiment")
     parser.add_argument('--stage', help="determines which dataset to use for training")
     parser.add_argument('--restore_ckpt', help="restore checkpoint")
+    parser.add_argument('--checkpoint_out', default="./checkpoints", help="Output folder for checkpoints")
     parser.add_argument('--small', action='store_true', help='use small model')
     parser.add_argument('--validation', type=str, nargs='+')
 
@@ -249,12 +256,13 @@ if __name__ == '__main__':
     parser.add_argument('--dropout', type=float, default=0.0)
     parser.add_argument('--gamma', type=float, default=0.8, help='exponential weighting')
     parser.add_argument('--add_noise', action='store_true')
+    parser.add_argument('--seed', type=int, default=1234, help="Seed used for all RNGs")
     args = parser.parse_args()
 
-    torch.manual_seed(1234)
-    np.random.seed(1234)
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
 
-    if not os.path.isdir('checkpoints'):
-        os.mkdir('checkpoints')
+    if not os.path.isdir(args.checkpoint_out):
+        os.makedirs(args.checkpoint_out, exist_ok=True)
 
     train(args)

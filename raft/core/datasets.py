@@ -16,13 +16,13 @@ from utils.augmentor import FlowAugmentor, SparseFlowAugmentor
 
 
 class FlowDataset(data.Dataset):
-    def __init__(self, aug_params=None, sparse=False, has_semseg=False, from_npz=False, from_png=False, crop_bottom=False):
+    def __init__(self, aug_params=None, sparse=False, read_semseg=False, from_npz=False, from_png=False, crop_bottom=False):
         """ Constructor for FlowDataset class.
 
         Args:
             aug_params (_type_, optional): _description_. Defaults to None.
             sparse (bool, optional): If true, read sparse flow in KITTI format. Defaults to False.
-            has_semseg (bool, optional): If true, read also semantic segmentation GT. Defaults to False.
+            read_semseg (bool, optional): If true, read also semantic segmentation GT. Defaults to False.
             from_npz (bool, optional): If true, read flow from npz files (VIPER format). Defaults to False.
             from_png (bool, optional): If true, read flow from png files (Virtual KITTI format). Defaults to False.
             crop_bottom (bool, optional): If true, crop bottom part of input images. Defaults to False.
@@ -41,7 +41,7 @@ class FlowDataset(data.Dataset):
         self.image_list = []
         self.extra_info = []
 
-        self.has_semseg = has_semseg
+        self.read_semseg = read_semseg
         self.semseg_list = []
 
         self.from_npz = from_npz
@@ -80,7 +80,7 @@ class FlowDataset(data.Dataset):
 
         # Read semseg GT
         semseg_1, semseg_2 = None, None
-        if self.has_semseg:
+        if self.read_semseg:
             semseg_1 = np.array(frame_utils.read_gen(self.semseg_list[index][0]).convert('RGB')).astype(np.uint8)
             semseg_2 = np.array(frame_utils.read_gen(self.semseg_list[index][1]).convert('RGB')).astype(np.uint8)
   
@@ -112,16 +112,13 @@ class FlowDataset(data.Dataset):
                 semseg_2 = semseg_2[:-150, :]
 
         if self.augmentor is not None:
-            if self.sparse:
-                img1, img2, flow, valid = self.augmentor(img1, img2, flow, valid)
-            else:
-                img1, img2, flow = self.augmentor(img1, img2, flow)
+            img1, img2, flow, valid = self.augmentor(img1, img2, flow, valid)
 
         # Create tensors from numpy arrays and permute dimensions => channel-first
         img1 = torch.from_numpy(img1).permute(2, 0, 1).float()
         img2 = torch.from_numpy(img2).permute(2, 0, 1).float()
         flow = torch.from_numpy(flow).permute(2, 0, 1).float()
-        if self.has_semseg:
+        if self.read_semseg:
             semseg_1 = torch.from_numpy(semseg_1).permute(2, 0, 1).float()
             semseg_2 = torch.from_numpy(semseg_2).permute(2, 0, 1).float()
 
@@ -130,7 +127,7 @@ class FlowDataset(data.Dataset):
         else:
             valid = (flow[0].abs() < 1000) & (flow[1].abs() < 1000)
 
-        if self.has_semseg:
+        if self.read_semseg:
             return img1, img2, flow, valid.float(), semseg_1, semseg_2
         else:
             return img1, img2, flow, valid.float()
@@ -223,7 +220,7 @@ class KITTI(FlowDataset):
 
 
 class HD1K(FlowDataset):
-    def __init__(self, aug_params=None, root='datasets/HD1k'):
+    def __init__(self, aug_params=None, root='datasets/HD1K'):
         super(HD1K, self).__init__(aug_params, sparse=True)
 
         seq_ix = 0
@@ -272,20 +269,21 @@ class FlyingThingsSubset(FlowDataset):
 
 class VIPER(FlowDataset):
     def __init__(self, aug_params=None, root='datasets/VIPER', split='train'):
-        super(VIPER, self).__init__(aug_params, sparse=False, from_npz=True, crop_bottom=True, has_semseg=True)
+        super(VIPER, self).__init__(aug_params, sparse=False, from_npz=True, crop_bottom=False, read_semseg=False)
 
         seq_idx = 1
 
         while True:
             flow_paths = sorted(glob(os.path.join(root, split, "flow", "%03d" % seq_idx, "%03d_*.npz" % seq_idx)))
             image_paths = sorted(glob(os.path.join(root, split, "img", "%03d" % seq_idx, "%03d_*.jpg" % seq_idx)))
-            semseg_paths = sorted(glob(os.path.join(root, split, "cls", "%03d" % seq_idx, "%03d_*.png" % seq_idx)))
-            
+            if self.read_semseg:
+                semseg_paths = sorted(glob(os.path.join(root, split, "cls", "%03d" % seq_idx, "%03d_*.png" % seq_idx)))
+                assert len(semseg_paths) == len(image_paths), f"Mismatch between number of semseg maps ({len(semseg_paths)}) and number of images ({len(image_paths)})"
+
             if len(flow_paths) == 0:
                 break
 
             # assert len(flow_paths) * 2 == len(image_paths), f"Mismatch between number of flow maps ({len(flow_paths)}) and number of images ({len(image_paths)})"
-            assert len(semseg_paths) == len(image_paths), f"Mismatch between number of semseg maps ({len(semseg_paths)}) and number of images ({len(image_paths)})"
 
             for i in range(len(flow_paths) - 1):
                 frame_id = os.path.basename(flow_paths[i]).split('.')[0]
@@ -295,15 +293,16 @@ class VIPER(FlowDataset):
                     if re.search(frame_id, image_paths[j]) is not None and re.search(next_frame_id, image_paths[j + 1]) is not None:
                         self.flow_list += [flow_paths[i]]
                         self.image_list += [[image_paths[j], image_paths[j + 1]]]
-                        self.semseg_list += [[semseg_paths[j], semseg_paths[j + 1]]]
+                        if self.read_semseg:
+                            self.semseg_list += [[semseg_paths[j], semseg_paths[j + 1]]]
                         break
 
             seq_idx += 1
 
 
 class VirtualKITTI(FlowDataset):
-    def __init__(self, aug_params=None, root='datasets/VirtualKITI'):
-        super(VirtualKITTI, self).__init__(aug_params, from_png=True, has_semseg=True)
+    def __init__(self, aug_params=None, root='datasets/VirtualKITTI'):
+        super(VirtualKITTI, self).__init__(aug_params, from_png=True, read_semseg=False)
 
         self.scene_ids = [1, 2, 6, 18, 20]
         self.variants = ['15-deg-left', '15-deg-right', '30-deg-left', '30-deg-right', 'clone',
@@ -312,14 +311,16 @@ class VirtualKITTI(FlowDataset):
         for scene_id in self.scene_ids:
             for variant in self.variants:
                 image_paths = sorted(glob(os.path.join(root, f"Scene{scene_id:02d}", variant, "frames", "rgb", "Camera_0", "rgb_*.jpg")))
-                semseg_paths = sorted(glob(os.path.join(root, f"Scene{scene_id:02d}", variant, "frames", "classSegmentation", "Camera_0", "classgt_*.png")))
                 flow_paths = sorted(glob(os.path.join(root, f"Scene{scene_id:02d}", variant, "frames", "forwardFlow", "Camera_0", "flow_*.png")))
+                if self.read_semseg:
+                    semseg_paths = sorted(glob(os.path.join(root, f"Scene{scene_id:02d}", variant, "frames", "classSegmentation", "Camera_0", "classgt_*.png")))
 
                 # TODO: improve this; do not read RGB and semseg twice
                 for i in range(len(flow_paths) - 1):
                     self.flow_list += [flow_paths[i]]
                     self.image_list += [[image_paths[i], image_paths[i + 1]]]
-                    self.semseg_list += [[semseg_paths[i], semseg_paths[i + 1]]]
+                    if self.read_semseg:
+                        self.semseg_list += [[semseg_paths[i], semseg_paths[i + 1]]]
 
 
 def fetch_dataloader(args, TRAIN_DS='C+T+K+S+H'):
@@ -355,6 +356,13 @@ def fetch_dataloader(args, TRAIN_DS='C+T+K+S+H'):
     elif args.stage == 'kitti':
         aug_params = {'crop_size': args.image_size, 'min_scale': -0.2, 'max_scale': 0.4, 'do_flip': False}
         train_dataset = KITTI(aug_params, split='training')
+
+    elif args.stage == 'viper':
+        aug_params = {'crop_size': args.image_size, 'min_scale': -0.5, 'max_scale': 0.2, 'do_flip': True}
+        hd1k = HD1K(aug_params)
+        virtual_kitti = VirtualKITTI(aug_params)
+        viper = VIPER(aug_params)
+        train_dataset = 5 * hd1k + virtual_kitti + 2 * viper
 
     else:
         raise AttributeError(f"Invalid training stage: {args.stage}")

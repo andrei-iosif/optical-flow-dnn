@@ -14,6 +14,17 @@
                 "--out", "${workspaceFolder}/dump/raft_sintel"
             ],
             "cwd": "${workspaceFolder}/raft/utils"
+        },
+        {
+            "name": "Python: run_dataset_visu.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/raft/utils/run_dataset_visu.py",
+            "args": [
+                "--dataset_root", "${workspaceFolder}/raft/datasets/HD1K",
+                "--out", "${workspaceFolder}/dump/"
+            ],
+            "cwd": "${workspaceFolder}/raft/utils"
         }
     ]
 }
