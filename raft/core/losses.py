@@ -35,10 +35,9 @@ def elementwise_laplacian(flow_pred, flow_gt):
     log_var = torch.sum(torch.log(predictions_variance), dim=1, keepdim=True)
     abs_diff = (flow_gt - predictions_mean).abs()
 
-    weighted_epe = torch.sqrt(
-        torch.sum(abs_diff / predictions_variance, dim=1, keepdim=True))
+    weighted_abs_diff = torch.sum(abs_diff / torch.sqrt(predictions_variance), dim=1, keepdim=True)
 
-    return weighted_epe + log_var
+    return weighted_abs_diff + log_var
 
 
 def endpoint_error(flow_pred, flow_gt):

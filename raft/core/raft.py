@@ -164,10 +164,12 @@ class RAFT(nn.Module):
                 flow_predictions.append(flow_up)
 
         if test_mode:
-            if self.args.uncertainty:
-                return coords1 - coords0, flow_up, flow_variance, flow_var_up
-            else:
-                return coords1 - coords0, flow_up
+            # TODO: decide on output format (this implies refactoring of evaluate.py)
+            return coords1 - coords0, flow_up
+            # if self.args.uncertainty:
+            #     return coords1 - coords0, flow_up, flow_variance, flow_var_up
+            # else:
+            #     return coords1 - coords0, flow_up
             
         return flow_predictions
 
