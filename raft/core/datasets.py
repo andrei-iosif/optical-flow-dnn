@@ -359,14 +359,15 @@ def fetch_dataloader(args, TRAIN_DS='C+T+K+S+H'):
 
     elif args.stage == 'viper':
         aug_params = {'crop_size': args.image_size, 'min_scale': -0.5, 'max_scale': 0.2, 'do_flip': True}
-        hd1k = HD1K(aug_params)
         virtual_kitti = VirtualKITTI(aug_params)
         viper = VIPER(aug_params)
-        train_dataset = 5 * hd1k + virtual_kitti + 2 * viper
+        train_dataset = virtual_kitti + 2 * viper
 
     else:
         raise AttributeError(f"Invalid training stage: {args.stage}")
 
+    # Reset seed here to ensure same validation subsets (ex. see evaluate.py for VIPER dataset)
+    torch.manual_seed(0)
     train_loader = data.DataLoader(train_dataset, batch_size=args.batch_size,
                                    pin_memory=False, shuffle=True, num_workers=4, drop_last=True)
 

@@ -79,6 +79,8 @@ def validate_chairs(model, iters=24):
     epe_list = []
 
     val_dataset = datasets.FlyingChairs(split='validation')
+    print(f"Validating on FlyingChairs (val) (size = {len(val_dataset)})")
+
     for val_id in range(len(val_dataset)):
         image1, image2, flow_gt, _ = val_dataset[val_id]
         image1 = image1[None].cuda()
@@ -100,6 +102,8 @@ def validate_sintel(model, iters=32):
     results = {}
     for dstype in ['clean', 'final']:
         val_dataset = datasets.MpiSintel(split='training', dstype=dstype)
+        print(f"Validating on Sintel ({dstype}) (train) (size = {len(val_dataset)})")
+
         epe_list = []
 
         for val_id in range(len(val_dataset)):
@@ -133,6 +137,7 @@ def validate_kitti(model, iters=24):
     """ Peform validation using the KITTI-2015 (train) split """
     model.eval()
     val_dataset = datasets.KITTI(split='training')
+    print(f"Validating on KITTI training (size = {len(val_dataset)})")
 
     out_list, epe_list = [], []
     for val_id in range(len(val_dataset)):
@@ -171,12 +176,18 @@ def validate_kitti(model, iters=24):
 def validate_viper(model, iters=24):
     """ Peform validation using the VIPER (val) split """
     model.eval()
+    # torch.cuda.empty_cache()
+
     results = {}
    
     val_dataset = datasets.VIPER(split='val')
+    subset_size = 250
+    print(f"Validating on VIPER (val) (size = {len(val_dataset)}), subset size = {subset_size}")
+
     epe_list = []
 
-    for val_id in range(len(val_dataset)):
+    # for val_id in range(len(val_dataset)):
+    for val_id in range(subset_size):
         image1, image2, flow_gt, _ = val_dataset[val_id]
         image1 = image1[None].cuda()
         image2 = image2[None].cuda()
@@ -188,7 +199,7 @@ def validate_viper(model, iters=24):
         flow = padder.unpad(flow_pr[0]).cpu()
 
         epe = torch.sum((flow - flow_gt)**2, dim=0).sqrt()
-        epe_list.append(epe.view(-1).numpy())
+        epe_list.append(epe.view(-1).cpu().numpy())
 
     epe_all = np.concatenate(epe_list)
     epe = np.mean(epe_all)
@@ -196,8 +207,11 @@ def validate_viper(model, iters=24):
     px3 = np.mean(epe_all<3)
     px5 = np.mean(epe_all<5)
 
-    print("Validation (%s) EPE: %f, 1px: %f, 3px: %f, 5px: %f" % ("VIPER val", epe, px1, px3, px5))
-    results["VIPER val EPE"] = np.mean(epe_list)
+    print("Validation (%s) EPE: %f, 1px: %f, 3px: %f, 5px: %f" % ("VIPER", epe, px1, px3, px5))
+    results["viper-val-epe"] = np.mean(epe_list)
+    results["viper-val-px1"] = px1
+    results["viper-val-px3"] = px3
+    results["viper-val-px5"] = px5
 
     return results
 
@@ -232,5 +246,11 @@ if __name__ == '__main__':
 
         elif args.dataset == 'kitti':
             validate_kitti(model.module)
+        
+        elif args.dataset == 'viper':
+            validate_viper(model.module)
+
+        else:
+            raise AttributeError(f"Invalid validation dataset: {args.dataset}")
 
 

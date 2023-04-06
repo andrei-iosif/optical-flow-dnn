@@ -92,7 +92,7 @@ class CorrBlock:
         corr = corr.view(batch, ht, wd, 1, ht, wd)
 
         # Normalize result (divide by sqrt(C))
-        return corr / torch.sqrt(torch.tensor(dim).float())
+        return corr.mul_(1.0 / torch.sqrt(torch.tensor(dim).float()))
 
 
 class AlternateCorrBlock:

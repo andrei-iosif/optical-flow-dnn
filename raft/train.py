@@ -43,6 +43,8 @@ except:
 # exclude extremely large displacements
 MAX_FLOW = 400
 SUM_FREQ = 100
+
+# Number of iterations after which we compute metrics on validation set (+ save checkpoint)
 VAL_FREQ = 5000
 
 
@@ -65,7 +67,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
     epe = epe.view(-1)[valid.view(-1)]
 
     metrics = {
-        'loss': flow_loss.item(),
+        'loss': flow_loss.float().item(),
         'epe': epe.mean().item(),
         '1px': (epe < 1).float().mean().item(),
         '3px': (epe < 3).float().mean().item(),
@@ -165,8 +167,6 @@ def train(args):
     scaler = GradScaler(enabled=args.mixed_precision)
     logger = Logger(model, scheduler)
 
-    # Number of iterations after which we compute metrics on validation set (+ save checkpoint)
-    VAL_FREQ = 5000
     add_noise = True  # TODO: remove if unused
 
     should_keep_training = True
@@ -211,6 +211,7 @@ def train(args):
                         results.update(evaluate.validate_kitti(model.module))
                     elif val_dataset == 'viper':
                         results.update(evaluate.validate_viper(model.module))
+                        results.update(evaluate.validate_kitti(model.module))
                     else:
                         raise AttributeError(f"Invalid validation dataset: {val_dataset}")
 
