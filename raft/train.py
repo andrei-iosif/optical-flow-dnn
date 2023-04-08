@@ -19,6 +19,7 @@ import datasets
 from torch.utils.tensorboard import SummaryWriter
 
 from clearml import Task
+from utils.visu.clearml_debug_visu import upload_debug_visu
 
 try:
     from torch.cuda.amp import GradScaler
@@ -45,7 +46,7 @@ MAX_FLOW = 400
 SUM_FREQ = 100
 
 # Number of iterations after which we compute metrics on validation set (+ save checkpoint)
-VAL_FREQ = 5000
+VAL_FREQ = 1000
 
 
 def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
@@ -140,8 +141,6 @@ class Logger:
 
 
 def train(args):
-    task = Task.init(project_name='RAFT', task_name=args.name)
-
     # Keep this or replace with DistributedDataParallel?
     model = nn.DataParallel(RAFT(args), device_ids=args.gpus)
     print("Parameter Count: %d" % count_parameters(model))
@@ -160,7 +159,7 @@ def train(args):
     if args.stage != 'chairs':
         model.module.freeze_bn()
 
-    train_loader = datasets.fetch_dataloader(args)
+    train_loader = datasets.fetch_dataloader(args, num_overfit_samples=args.num_overfit_samples)
     optimizer, scheduler = fetch_optimizer(args, model)
 
     total_steps = 0
@@ -217,6 +216,8 @@ def train(args):
 
                 logger.write_dict(results)
 
+                upload_debug_visu(model.module, data_sample=train_loader[0], iters=args.iters, train_step=total_steps)
+
                 model.train()
                 if args.stage != 'chairs':
                     model.module.freeze_bn()
@@ -258,7 +259,11 @@ if __name__ == '__main__':
     parser.add_argument('--gamma', type=float, default=0.8, help='exponential weighting')
     parser.add_argument('--add_noise', action='store_true')
     parser.add_argument('--seed', type=int, default=1234, help="Seed used for all RNGs")
+    parser.add_argument('--num_overfit_samples', type=int, default=-1, help="Number of samples to overfit on (if positive)")
     args = parser.parse_args()
+
+    # Initialize ClearML task
+    task = Task.init(project_name='RAFT Semantic', task_name=args.name)
 
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)

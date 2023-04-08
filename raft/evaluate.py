@@ -11,7 +11,6 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
 import datasets
-from utils import flow_viz
 from utils import frame_utils
 
 from raft import RAFT
@@ -181,7 +180,7 @@ def validate_viper(model, iters=24):
     results = {}
    
     val_dataset = datasets.VIPER(split='val')
-    subset_size = 250
+    subset_size = 50
     print(f"Validating on VIPER (val) (size = {len(val_dataset)}), subset size = {subset_size}")
 
     epe_list = []

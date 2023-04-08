@@ -323,7 +323,7 @@ class VirtualKITTI(FlowDataset):
                         self.semseg_list += [[semseg_paths[i], semseg_paths[i + 1]]]
 
 
-def fetch_dataloader(args, TRAIN_DS='C+T+K+S+H'):
+def fetch_dataloader(args, TRAIN_DS='C+T+K+S+H', num_overfit_samples=-1):
     """ Create the data loader for the corresponding training set """
 
     if args.stage == 'chairs':
@@ -359,9 +359,13 @@ def fetch_dataloader(args, TRAIN_DS='C+T+K+S+H'):
 
     elif args.stage == 'viper':
         aug_params = {'crop_size': args.image_size, 'min_scale': -0.5, 'max_scale': 0.2, 'do_flip': True}
-        virtual_kitti = VirtualKITTI(aug_params)
+        # virtual_kitti = VirtualKITTI(aug_params)
         viper = VIPER(aug_params)
-        train_dataset = virtual_kitti + 2 * viper
+
+        if num_overfit_samples > 0:
+            train_dataset = torch.utils.data.Subset(viper, range(0, num_overfit_samples))
+        else:
+            train_dataset = viper
 
     else:
         raise AttributeError(f"Invalid training stage: {args.stage}")
