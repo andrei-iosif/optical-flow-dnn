@@ -3,7 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .flow_visu import flow_to_color
+from core.utils.visu.flow_visu import flow_to_color
 
 
 def inputs_visu(img_1, gt_flow, valid_flow_mask=None, semseg_gt=None, sample_idx=-1, output_path=None):
@@ -60,7 +60,7 @@ def inputs_visu(img_1, gt_flow, valid_flow_mask=None, semseg_gt=None, sample_idx
         plt.show()
 
 
-def predictions_visu(img_1, gt_flow, pred_flow, sample_idx, output_path, additional_info=""):
+def predictions_visu(img_1, gt_flow, pred_flow, sample_id, output_path, additional_info=""):
     """
     Create visualization of input images, predicted optical flow and ground truth optical flow.
 
@@ -68,7 +68,7 @@ def predictions_visu(img_1, gt_flow, pred_flow, sample_idx, output_path, additio
         img1 (np.ndarray): First input image, with shape [3, H, W]
         gt_flow (np.ndarray): Ground truth optical flow, with shape [2, H, W]
         pred_flow (np.ndarray): Predicted optical flow, with shape [2, H, W]
-        sample_idx (int): Frame number
+        sample_id (int): Frame number
         output_path (str): Path where the visu is saved
         additional_info (str, optional): Additional label to be added to output file names. Defaults to "".
     """
@@ -97,8 +97,8 @@ def predictions_visu(img_1, gt_flow, pred_flow, sample_idx, output_path, additio
         os.makedirs(output_path, exist_ok=True)
         plt.subplots_adjust(wspace=0.05, hspace=0.05)
         fig.set_size_inches(aspect_ratio * 25, 25)
-        fig.savefig(os.path.join(output_path, str(sample_idx) + "_" + additional_info + '.jpeg'), bbox_inches="tight", pad_inches=0.3, dpi=100)
+        fig.savefig(os.path.join(output_path, str(sample_id) + "_" + additional_info + '.jpeg'), bbox_inches="tight", pad_inches=0.3, dpi=100)
         plt.close()
-        print(f"Saved frame {sample_idx}")
+        print(f"Saved frame {sample_id}")
     else:
         return fig

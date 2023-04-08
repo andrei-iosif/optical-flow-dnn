@@ -1,8 +1,8 @@
 from __future__ import print_function, division
 
-import sys
+# import sys
 
-sys.path.append('core')
+# sys.path.append('core')
 
 import argparse
 import os
@@ -12,14 +12,14 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from raft import RAFT
+import core.datasets as datasets
+from core.raft import RAFT
 import evaluate
-import datasets
 
 from torch.utils.tensorboard import SummaryWriter
 
 from clearml import Task
-from utils.visu.clearml_debug_visu import upload_debug_visu
+from core.utils.visu.clearml_debug_visu import upload_debug_visu
 
 try:
     from torch.cuda.amp import GradScaler
@@ -41,12 +41,13 @@ except:
         def update(self):
             pass
 
+# TODO: move loss computation and logging to another file
 # exclude extremely large displacements
 MAX_FLOW = 400
 SUM_FREQ = 100
 
 # Number of iterations after which we compute metrics on validation set (+ save checkpoint)
-VAL_FREQ = 1000
+VAL_FREQ = 500
 
 
 def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
@@ -160,6 +161,7 @@ def train(args):
         model.module.freeze_bn()
 
     train_loader = datasets.fetch_dataloader(args, num_overfit_samples=args.num_overfit_samples)
+    debug_sample = train_loader.dataset[0]
     optimizer, scheduler = fetch_optimizer(args, model)
 
     total_steps = 0
@@ -210,13 +212,13 @@ def train(args):
                         results.update(evaluate.validate_kitti(model.module))
                     elif val_dataset == 'viper':
                         results.update(evaluate.validate_viper(model.module))
-                        results.update(evaluate.validate_kitti(model.module))
+                        # results.update(evaluate.validate_kitti(model.module))
                     else:
                         raise AttributeError(f"Invalid validation dataset: {val_dataset}")
 
                 logger.write_dict(results)
 
-                upload_debug_visu(model.module, data_sample=train_loader[0], iters=args.iters, train_step=total_steps)
+                # upload_debug_visu(model.module, data_sample=debug_sample, iters=args.iters, train_step=total_steps)
 
                 model.train()
                 if args.stage != 'chairs':

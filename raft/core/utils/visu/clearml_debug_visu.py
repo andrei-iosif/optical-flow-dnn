@@ -1,8 +1,8 @@
 import clearml
 import torch
 
-from .visu import predictions_visu
-from ..utils import InputPadder
+import core.utils.visu.visu as visu
+from core.utils.utils import InputPadder
 
 def upload_debug_visu(model, data_sample, iters, train_step):
     """ Create a debug visu to be uploaded to ClearML dashboard.
@@ -37,7 +37,7 @@ def upload_debug_visu(model, data_sample, iters, train_step):
         flow_gt = flow_gt.cpu().numpy()
 
         # Create visu
-        fig = predictions_visu(image_1, flow_gt, flow_pred, sample_id=0, output_path=None)
+        fig = visu.predictions_visu(image_1, flow_gt, flow_pred, sample_id=0, output_path=None)
 
         # Upload to ClearML
         logger = clearml.Logger.current_logger()

@@ -1,20 +1,16 @@
-import sys
-sys.path.append('core')
+# import sys
+# sys.path.append('core')
 
-from PIL import Image
 import argparse
 import os
-import time
 import numpy as np
 import torch
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
 
-import datasets
-from utils import frame_utils
+import core.datasets as datasets
+from core.utils import frame_utils
 
-from raft import RAFT
-from utils.utils import InputPadder, forward_interpolate
+from core.raft import RAFT
+from core.utils.utils import InputPadder, forward_interpolate
 
 from clearml import Task
 
@@ -180,7 +176,7 @@ def validate_viper(model, iters=24):
     results = {}
    
     val_dataset = datasets.VIPER(split='val')
-    subset_size = 50
+    subset_size = 5
     print(f"Validating on VIPER (val) (size = {len(val_dataset)}), subset size = {subset_size}")
 
     epe_list = []
