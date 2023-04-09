@@ -55,7 +55,7 @@ def fetch_optimizer(args, model):
 
 def fetch_loss_func(args):
     """ Create loss function. """
-    if args.use_semantic_loss:
+    if "semantic_loss" in args:
         print("Training using semantic RAFT loss")
         return losses.RaftSemanticLoss(gamma=args.gamma)
     else:
@@ -83,7 +83,8 @@ def train(args):
         model.module.freeze_bn()
 
     # Prepare dataset, optimizer and loss function
-    train_loader = datasets.fetch_dataloader(args, num_overfit_samples=args.num_overfit_samples)
+    use_semseg = "semantic_loss" in args
+    train_loader = datasets.fetch_dataloader(args, num_overfit_samples=args.num_overfit_samples, use_semseg=use_semseg)
     optimizer, scheduler = fetch_optimizer(args, model)
     loss_func = fetch_loss_func(args)
 
@@ -96,20 +97,29 @@ def train(args):
 
         for batch_idx, data_blob in enumerate(train_loader):
             optimizer.zero_grad()
-            image1, image2, flow, valid = [x.cuda() for x in data_blob]
+
+            # Unpack data sample
+            if use_semseg:
+                image_1, image_2, flow, valid_mask, semseg_1, semseg_2 = [x.cuda() for x in data_blob]
+            else:
+                image_1, image_2, flow, valid_mask = [x.cuda() for x in data_blob]
 
             # TODO: move data augmentations to separate class
             # Gaussian noise augmentation
             if args.add_noise:
                 stdv = np.random.uniform(0.0, 5.0)
-                image1 = (image1 + stdv * torch.randn(*image1.shape).cuda()).clamp(0.0, 255.0)
-                image2 = (image2 + stdv * torch.randn(*image2.shape).cuda()).clamp(0.0, 255.0)
+                image_1 = (image_1 + stdv * torch.randn(*image_1.shape).cuda()).clamp(0.0, 255.0)
+                image_2 = (image_2 + stdv * torch.randn(*image_2.shape).cuda()).clamp(0.0, 255.0)
 
             # Forward pass (default: 12 iterations)
-            flow_predictions = model(image1, image2, iters=args.iters)
+            flow_predictions = model(image_1, image_2, iters=args.iters)
 
             # Loss computation
-            loss, metrics = loss_func(flow_predictions, flow, valid)
+            if use_semseg:
+                loss, metrics = loss_func(flow_predictions, flow, valid_mask, semseg_1, semseg_2)
+            else:
+                loss, metrics = loss_func(flow_predictions, flow, valid_mask)
+
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
