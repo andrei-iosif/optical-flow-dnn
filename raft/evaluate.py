@@ -5,12 +5,14 @@ import argparse
 import os
 import numpy as np
 import torch
+import torch.utils.data as data
 
 import core.datasets as datasets
 from core.utils import frame_utils
 
 from core.raft import RAFT
 from core.utils.utils import InputPadder, forward_interpolate
+from core.utils.random import set_random_seed
 
 from clearml import Task
 
@@ -168,7 +170,7 @@ def validate_kitti(model, iters=24):
 
 
 @torch.no_grad()
-def validate_viper(model, iters=24):
+def validate_viper(model, iters=24, subset_size=-1):
     """ Peform validation using the VIPER (val) split """
     model.eval()
     # torch.cuda.empty_cache()
@@ -176,13 +178,26 @@ def validate_viper(model, iters=24):
     results = {}
    
     val_dataset = datasets.VIPER(split='val')
-    subset_size = 5
-    print(f"Validating on VIPER (val) (size = {len(val_dataset)}), subset size = {subset_size}")
+    
+    # Create data subset, in case we don't want to evaluate on entire dataset
+    if subset_size > 0:
+        rng = set_random_seed(0)
+        val_dataset_size = len(val_dataset)
+        assert val_dataset_size > subset_size, f"Cannot create subset of size {subset_size} from dataset of size {val_dataset_size}"
+
+        # Generate a set of random indexes (should be deterministic)
+        val_idx, _ = data.random_split(
+                range(0, val_dataset_size), 
+                [subset_size, val_dataset_size - subset_size],
+                generator=rng)
+        
+        val_dataset = data.Subset(val_dataset, val_idx)
+
+    print(f"Validating on VIPER (val) (size = {len(val_dataset)})")
 
     epe_list = []
 
-    # for val_id in range(len(val_dataset)):
-    for val_id in range(subset_size):
+    for val_id in range(len(val_dataset)):
         image1, image2, flow_gt, _ = val_dataset[val_id]
         image1 = image1[None].cuda()
         image2 = image2[None].cuda()

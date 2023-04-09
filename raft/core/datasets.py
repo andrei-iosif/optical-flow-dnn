@@ -12,6 +12,7 @@ import os.path as osp
 
 from core.utils import frame_utils
 from core.utils.augmentor import FlowAugmentor, SparseFlowAugmentor
+from core.utils.random import set_random_seed, seed_worker
 
 
 class FlowDataset(data.Dataset):
@@ -325,15 +326,21 @@ class VirtualKITTI(FlowDataset):
 def fetch_dataloader(args, TRAIN_DS='C+T+K+S+H', num_overfit_samples=-1):
     """ Create the data loader for the corresponding training set """
 
+    # Reset seed here to ensure same validation subsets (ex. see evaluate.py for VIPER dataset)
+    rng = set_random_seed(0)
+
     if args.stage == 'chairs':
         aug_params = {'crop_size': args.image_size, 'min_scale': -0.1, 'max_scale': 1.0, 'do_flip': True}
         train_dataset = FlyingChairs(aug_params, split='training')
 
     elif args.stage == 'things':
         aug_params = {'crop_size': args.image_size, 'min_scale': -0.4, 'max_scale': 0.8, 'do_flip': True}
+        
         # clean_dataset = FlyingThings3D(aug_params, dstype='frames_cleanpass')
         # final_dataset = FlyingThings3D(aug_params, dstype='frames_finalpass')
         # train_dataset = clean_dataset + final_dataset
+        
+        # Train only on FlyingThings subset
         train_dataset = FlyingThingsSubset(aug_params)
 
     elif args.stage == 'sintel':
@@ -360,19 +367,33 @@ def fetch_dataloader(args, TRAIN_DS='C+T+K+S+H', num_overfit_samples=-1):
         aug_params = {'crop_size': args.image_size, 'min_scale': -0.5, 'max_scale': 0.2, 'do_flip': True}
         # virtual_kitti = VirtualKITTI(aug_params)
         viper = VIPER(aug_params)
-
-        if num_overfit_samples > 0:
-            train_dataset = torch.utils.data.Subset(viper, range(0, num_overfit_samples))
-        else:
-            train_dataset = viper
+        train_dataset = viper
 
     else:
         raise AttributeError(f"Invalid training stage: {args.stage}")
 
-    # Reset seed here to ensure same validation subsets (ex. see evaluate.py for VIPER dataset)
-    torch.manual_seed(0)
-    train_loader = data.DataLoader(train_dataset, batch_size=args.batch_size,
-                                   pin_memory=False, shuffle=True, num_workers=4, drop_last=True)
+    # Create data subset, to be used for overfit experiments
+    if num_overfit_samples > 0:
+        train_dataset_size = len(train_dataset)
+        assert train_dataset_size > num_overfit_samples, f"Cannot create subset of size {num_overfit_samples} from dataset of size {train_dataset_size}"
 
-    print('Training with %d image pairs' % len(train_dataset))
+        # Generate a set of random indexes (should be deterministic)
+        train_idx, _ = data.random_split(
+                range(0, train_dataset_size), 
+                [num_overfit_samples, train_dataset_size - num_overfit_samples],
+                generator=rng)
+
+        train_dataset = data.Subset(train_dataset, train_idx)
+
+    train_loader = data.DataLoader(
+        train_dataset, 
+        batch_size=args.batch_size,
+        pin_memory=False, 
+        shuffle=True, 
+        num_workers=4, 
+        worker_init_fn=seed_worker,
+        generator=rng,
+        drop_last=True)
+
+    print(f"Training with {len(train_dataset)} image pairs")
     return train_loader

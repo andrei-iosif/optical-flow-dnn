@@ -1,9 +1,5 @@
 from __future__ import print_function, division
 
-# import sys
-
-# sys.path.append('core')
-
 import argparse
 import os
 import numpy as np
@@ -13,18 +9,19 @@ import torch.nn as nn
 import torch.optim as optim
 
 import core.datasets as datasets
+import core.losses as losses
 from core.raft import RAFT
+from core.utils.logger import Logger
+from core.utils.random import set_random_seed
+
 import evaluate
 
-from torch.utils.tensorboard import SummaryWriter
-
 from clearml import Task
-from core.utils.visu.clearml_debug_visu import upload_debug_visu
 
 try:
     from torch.cuda.amp import GradScaler
 except:
-    # dummy GradScaler for PyTorch < 1.6
+    # Dummy GradScaler for PyTorch < 1.6
     class GradScaler:
         def __init__(self):
             pass
@@ -41,43 +38,6 @@ except:
         def update(self):
             pass
 
-# TODO: move loss computation and logging to another file
-# exclude extremely large displacements
-MAX_FLOW = 400
-SUM_FREQ = 100
-
-# Number of iterations after which we compute metrics on validation set (+ save checkpoint)
-VAL_FREQ = 500
-
-
-def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
-    """ Loss function defined over sequence of flow predictions """
-
-    n_predictions = len(flow_preds)
-    flow_loss = 0.0
-
-    # exclude invalid pixels and extremely large displacements
-    mag = torch.sum(flow_gt ** 2, dim=1).sqrt()
-    valid = (valid >= 0.5) & (mag < max_flow)
-
-    for i in range(n_predictions):
-        i_weight = gamma ** (n_predictions - i - 1)
-        i_loss = (flow_preds[i] - flow_gt).abs()
-        flow_loss += i_weight * (valid[:, None] * i_loss).mean()
-
-    epe = torch.sum((flow_preds[-1] - flow_gt) ** 2, dim=1).sqrt()
-    epe = epe.view(-1)[valid.view(-1)]
-
-    metrics = {
-        'loss': flow_loss.float().item(),
-        'epe': epe.mean().item(),
-        '1px': (epe < 1).float().mean().item(),
-        '3px': (epe < 3).float().mean().item(),
-        '5px': (epe < 5).float().mean().item(),
-    }
-
-    return flow_loss, metrics
-
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -93,52 +53,14 @@ def fetch_optimizer(args, model):
     return optimizer, scheduler
 
 
-class Logger:
-    def __init__(self, model, scheduler):
-        self.model = model
-        self.scheduler = scheduler
-        self.total_steps = 0
-        self.running_loss = {}
-        self.writer = None
-
-    def _print_training_status(self):
-        # metrics_data = [self.running_loss[k] / SUM_FREQ for k in sorted(self.running_loss.keys())]
-        metrics_data = [self.running_loss[k] / SUM_FREQ for k in self.running_loss.keys()]
-        training_str = "[{:6d}, {:10.7f}] ".format(self.total_steps + 1, self.scheduler.get_last_lr()[0])
-        metrics_str = ("{:10.4f}, " * len(metrics_data)).format(*metrics_data)
-
-        # print the training status
-        print(training_str + metrics_str)
-
-        if self.writer is None:
-            self.writer = SummaryWriter()
-
-        for k in self.running_loss:
-            self.writer.add_scalar(k, self.running_loss[k] / SUM_FREQ, self.total_steps)
-            self.running_loss[k] = 0.0
-
-    def push(self, metrics):
-        self.total_steps += 1
-
-        for key in metrics:
-            if key not in self.running_loss:
-                self.running_loss[key] = 0.0
-
-            self.running_loss[key] += metrics[key]
-
-        if self.total_steps % SUM_FREQ == SUM_FREQ - 1:
-            self._print_training_status()
-            self.running_loss = {}
-
-    def write_dict(self, results):
-        if self.writer is None:
-            self.writer = SummaryWriter()
-
-        for key in results:
-            self.writer.add_scalar(key, results[key], self.total_steps)
-
-    def close(self):
-        self.writer.close()
+def fetch_loss_func(args):
+    """ Create loss function. """
+    if args.use_semantic_loss:
+        print("Training using semantic RAFT loss")
+        return losses.RaftSemanticLoss(gamma=args.gamma)
+    else:
+        print("Training using base RAFT loss")
+        return losses.RaftLoss(gamma=args.gamma)
 
 
 def train(args):
@@ -160,20 +82,19 @@ def train(args):
     if args.stage != 'chairs':
         model.module.freeze_bn()
 
+    # Prepare dataset, optimizer and loss function
     train_loader = datasets.fetch_dataloader(args, num_overfit_samples=args.num_overfit_samples)
-    debug_sample = train_loader.dataset[0]
     optimizer, scheduler = fetch_optimizer(args, model)
+    loss_func = fetch_loss_func(args)
 
     total_steps = 0
     scaler = GradScaler(enabled=args.mixed_precision)
     logger = Logger(model, scheduler)
 
-    add_noise = True  # TODO: remove if unused
-
     should_keep_training = True
     while should_keep_training:
 
-        for i_batch, data_blob in enumerate(train_loader):
+        for batch_idx, data_blob in enumerate(train_loader):
             optimizer.zero_grad()
             image1, image2, flow, valid = [x.cuda() for x in data_blob]
 
@@ -187,7 +108,8 @@ def train(args):
             # Forward pass (default: 12 iterations)
             flow_predictions = model(image1, image2, iters=args.iters)
 
-            loss, metrics = sequence_loss(flow_predictions, flow, valid, args.gamma)
+            # Loss computation
+            loss, metrics = loss_func(flow_predictions, flow, valid)
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
@@ -198,7 +120,8 @@ def train(args):
 
             logger.push(metrics)
 
-            if total_steps % VAL_FREQ == VAL_FREQ - 1:
+            # Validation
+            if total_steps % logger.val_freq == logger.val_freq - 1:
                 PATH = os.path.join(args.checkpoint_out, f"{total_steps + 1}_raft-{args.stage}.pth")
                 torch.save(model.state_dict(), PATH)
 
@@ -211,14 +134,12 @@ def train(args):
                     elif val_dataset == 'kitti':
                         results.update(evaluate.validate_kitti(model.module))
                     elif val_dataset == 'viper':
-                        results.update(evaluate.validate_viper(model.module))
+                        results.update(evaluate.validate_viper(model.module, subset_size=args.validation_set_size))
                         # results.update(evaluate.validate_kitti(model.module))
                     else:
                         raise AttributeError(f"Invalid validation dataset: {val_dataset}")
 
                 logger.write_dict(results)
-
-                # upload_debug_visu(model.module, data_sample=debug_sample, iters=args.iters, train_step=total_steps)
 
                 model.train()
                 if args.stage != 'chairs':
@@ -262,13 +183,16 @@ if __name__ == '__main__':
     parser.add_argument('--add_noise', action='store_true')
     parser.add_argument('--seed', type=int, default=1234, help="Seed used for all RNGs")
     parser.add_argument('--num_overfit_samples', type=int, default=-1, help="Number of samples to overfit on (if positive)")
+    parser.add_argument('--validation_set_size', type=int, default=-1, 
+        help="Number of samples used to compute validation metrics. By default, the entire validation dataset is used.")
+    parser.add_argument('--semantic_loss', action='store_true', help="Use semantic correction for training.")
     args = parser.parse_args()
 
     # Initialize ClearML task
     task = Task.init(project_name='RAFT Semantic', task_name=args.name)
 
-    torch.manual_seed(args.seed)
-    np.random.seed(args.seed)
+    # Initial seed for RNGs; influences the initial model weights
+    set_random_seed(args.seed)
 
     if not os.path.isdir(args.checkpoint_out):
         os.makedirs(args.checkpoint_out, exist_ok=True)
