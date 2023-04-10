@@ -21,6 +21,7 @@ Improvement ideas:
         - Semantic RAFT V2: add semseg prediction head + semseg loss + semantic consistency loss
     * Compare baseline RAFT with the 2 versions of semantic RAFT
     * Something similar to flow smoothness term (self-supervised scenario): https://arxiv.org/abs/2006.04902
+        - Implementation: https://github.com/google-research/google-research/tree/master/uflow
     * Same idea was applied to mono depth: https://arxiv.org/abs/1810.04093 (and others)
 
 2. Uncertainty estimation for optical flow
@@ -29,15 +30,22 @@ Improvement ideas:
 	    - Another one: https://arxiv.org/pdf/1805.11327.pdf
 	    - Classic approach: https://openaccess.thecvf.com/content_ICCV_2017/papers/Wannenwetsch_ProbFlow_Joint_Optical_ICCV_2017_paper.pdf
     * Have uncertainty GT from HD1K dataset
+    * Mixture density networks: https://upcommons.upc.edu/bitstream/handle/2117/100566/122527.pdf?isAllowed=y&sequence=1
+    
 
-3. Self-supervised RAFT
+3. How does training with multiple input resolutions affect performance?
+
+4. Replace ResNet encoder with something else (EfficientNet?)
+
+5. Self-supervised RAFT
 	* Train base model
 	    - Maybe use some of the tricks described here: https://arxiv.org/abs/2105.07014
 	* Add semantic constraints (?)
 	
-4. Synthetic -> real dataset generalization 
+6. Synthetic -> real dataset generalization 
 	* Train on:
 		- Chairs, Things, Virtual KITTI, VIPER
 		- Virtual KITTI and VIPER only
 	* Evaluate on KITTI, VIPER
 	* Is pretraining on Chairs and Things datasets really necessary for driving scenarios?
+	    - Compute flow statistics for each dataset   
