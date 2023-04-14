@@ -46,7 +46,7 @@
                 "--wdecay", "0.00001",
                 "--gamma", "0.85",
                 "--seed", "1234",
-                "--semantic_loss",
+                "--semantic_loss", "true",
             ],
             "cwd": "${workspaceFolder}/raft"
         }

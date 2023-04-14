@@ -104,14 +104,15 @@ class RaftSemanticLoss(nn.Module):
         gy = img[:, :-1, :] - img[:, 1:, :]
         return gx, gy
 
-    def get_semantic_smoothness_loss(self, flow_pred, semseg_gt, valid_mask):
+    def get_semantic_smoothness_loss(self, flow_pred, semseg_gt_1, semseg_gt_2, flow_valid_mask):
         """ Compute semantic smoothness loss, that ensures flow discontinuities are 
         correlated with semantic discontinuities.
 
         Args:
             flow_pred (torch.Tensor): Flow prediction, shape [B, 2, H, W]
-            semseg_gt (torch.Tensor): Semantic GT, shape [B, 3, H, W]
-            valid_mask (torch.Tensor): Flow validity mask, shape [B, 1, H, W]
+            semseg_gt_1 (torch.Tensor): Semantic GT for first image, shape [B, H, W]
+            semseg_gt_2 (torch.Tensor): Semantic GT for second image, shape [B, H, W]
+            flow_valid_mask (torch.Tensor): Flow validity mask, shape [B, 1, H, W]
 
         Return:
             semantic smoothness loss (float)
@@ -122,7 +123,7 @@ class RaftSemanticLoss(nn.Module):
         v_flow_grad_x, v_flow_grad_y = self.image_grads(flow_pred[:, 1, :, :])
 
         # Semseg gradients
-        semseg_grad_x, semseg_grad_y = self.image_grads(semseg_gt)
+        semseg_grad_x, semseg_grad_y = self.image_grads(semseg_gt_1)
 
         # If semseg gradient is zero => penalize flow discontinuities
         # If semseg gradient is not zero => no penalty
@@ -140,10 +141,14 @@ class RaftSemanticLoss(nn.Module):
         # Convert from [B, H, W] to [B, 1, H, W]
         semantic_loss = semantic_loss[:, None]
 
-        # Crop valid mask [B, H, W] -> [B, H-1, W-1]
-        valid_mask = valid_mask[:, :, 1:, 1:]
+        # Crop flow valid mask [B, H, W] -> [B, H-1, W-1]
+        flow_valid_mask = flow_valid_mask[:, :, 1:, 1:]
 
-        return (valid_mask * semantic_loss).mean()
+        # Compute non-occlusion mask from semseg GT for both frames
+        non_occlusion_mask = ((semseg_gt_1 - semseg_gt_2).abs() < 1e-5).float()
+        non_occlusion_mask = non_occlusion_mask[:, 1:, 1:]
+
+        return (non_occlusion_mask * flow_valid_mask * semantic_loss).mean()
 
     def forward(self, flow_preds, flow_gt, valid_mask, semseg_gt_1, semseg_gt_2):
         """ Compute loss.
@@ -152,8 +157,8 @@ class RaftSemanticLoss(nn.Module):
             flow_preds (list(torch.Tensor)): List of intermediate flow predictions, each with shape [B, 2, H, W].
             flow_gt (torch.Tensor): Flow ground truth, shape [B, 2, H, W]
             valid_mask (torch.Tensor): Flow validity mask; used to compute loss only for valid GT positions, shape [B, H, W].
-            semseg_gt_1 (torch.Tensor): Semantic segmentation ground truth for first image, shape [B, 3, H, W].
-            semseg_gt_2 (torch.Tensor): Semantic segmentation ground truth for second image, shape [B, 3, H, W].
+            semseg_gt_1 (torch.Tensor): Semantic segmentation ground truth for first image, shape [B, H, W].
+            semseg_gt_2 (torch.Tensor): Semantic segmentation ground truth for second image, shape [B, H, W].
 
         Returns:
             (total loss, additional metrics dict)
@@ -174,7 +179,7 @@ class RaftSemanticLoss(nn.Module):
             weight = self.gamma ** (num_predictions - i - 1)
             flow_loss = (flow_preds[i] - flow_gt).abs()
             total_flow_loss += weight * (valid_mask * flow_loss).mean()
-            semantic_loss = self.get_semantic_smoothness_loss(flow_preds[i], semseg_gt_1, valid_mask)
+            semantic_loss = self.get_semantic_smoothness_loss(flow_preds[i], semseg_gt_1, semseg_gt_2, valid_mask)
             total_semantic_loss += weight * semantic_loss
 
         total_loss = total_flow_loss + self.w_smooth * total_semantic_loss
