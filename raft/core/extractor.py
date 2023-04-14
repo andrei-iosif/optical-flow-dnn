@@ -227,7 +227,7 @@ class BasicEncoder(nn.Module):
         # Residual blocks at 1/8 resolution [B, 96, H//4, W//4] -> [B, 128, H//8, W//8]
         x = self.layer3(x)
 
-        # Output convolution [B, 128, H//8, W//8] -> [B, 128, H//8, W//8]
+        # Output convolution [B, 128, H//8, W//8] -> [B, 256, H//8, W//8]
         x = self.conv2(x)
 
         # Optional dropout layer
