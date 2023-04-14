@@ -1,7 +1,7 @@
 from torch.utils.tensorboard import SummaryWriter
 
 SUM_FREQ = 100
-VAL_FREQ = 500
+VAL_FREQ = 5000 # TODO: add this to argparse
 
 
 class Logger:

@@ -121,13 +121,13 @@ class FlowAugmentor:
             flow = flow * [scale_x, scale_y]
 
             if valid_mask is not None:
-                valid_mask = valid_mask.astype(float)
+                valid_mask = valid_mask.astype(np.float32)
                 valid_mask = cv2.resize(valid_mask, None, fx=scale_x, fy=scale_y, interpolation=cv2.INTER_LINEAR)
             
             if semseg_1 is not None and semseg_2 is not None:
-                semseg_1, semseg_2 = semseg_1.astype(float), semseg_2.astype(float)
-                semseg_1 = cv2.resize(semseg_1, None, fx=scale_x, fy=scale_y, interpolation=cv2.INTER_LINEAR)
-                semseg_2 = cv2.resize(semseg_2, None, fx=scale_x, fy=scale_y, interpolation=cv2.INTER_LINEAR)
+                semseg_1, semseg_2 = semseg_1.astype(np.float32), semseg_2.astype(np.float32)
+                semseg_1 = cv2.resize(semseg_1, None, fx=scale_x, fy=scale_y, interpolation=cv2.INTER_NEAREST)
+                semseg_2 = cv2.resize(semseg_2, None, fx=scale_x, fy=scale_y, interpolation=cv2.INTER_NEAREST)
 
         # Flipping
         if self.do_flip:
@@ -188,8 +188,8 @@ class FlowAugmentor:
             valid_mask = np.ascontiguousarray(valid_mask).astype(bool)
 
         if semseg_1 is not None and semseg_2 is not None:
-            semseg_1 = np.ascontiguousarray(semseg_1)
-            semseg_2 = np.ascontiguousarray(semseg_2)
+            semseg_1 = np.ascontiguousarray(semseg_1).astype(np.int32)
+            semseg_2 = np.ascontiguousarray(semseg_2).astype(np.int32)
 
         return img_1, img_2, flow, valid_mask, semseg_1, semseg_2
 

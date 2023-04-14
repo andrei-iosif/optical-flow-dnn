@@ -55,7 +55,7 @@ def fetch_optimizer(args, model):
 
 def fetch_loss_func(args):
     """ Create loss function. """
-    if "semantic_loss" in args:
+    if args.semantic_loss:
         print("Training using semantic RAFT loss")
         return losses.RaftSemanticLoss(gamma=args.gamma)
     else:
@@ -83,14 +83,14 @@ def train(args):
         model.module.freeze_bn()
 
     # Prepare dataset, optimizer and loss function
-    use_semseg = "semantic_loss" in args
+    use_semseg = args.semantic_loss
     train_loader = datasets.fetch_dataloader(args, num_overfit_samples=args.num_overfit_samples, use_semseg=use_semseg)
     optimizer, scheduler = fetch_optimizer(args, model)
     loss_func = fetch_loss_func(args)
 
     total_steps = 0
     scaler = GradScaler(enabled=args.mixed_precision)
-    logger = Logger(model, scheduler)
+    logger = Logger(scheduler)
 
     should_keep_training = True
     while should_keep_training:
@@ -145,7 +145,7 @@ def train(args):
                         results.update(evaluate.validate_kitti(model.module))
                     elif val_dataset == 'viper':
                         results.update(evaluate.validate_viper(model.module, subset_size=args.validation_set_size))
-                        # results.update(evaluate.validate_kitti(model.module))
+                        results.update(evaluate.validate_kitti(model.module))
                     else:
                         raise AttributeError(f"Invalid validation dataset: {val_dataset}")
 
@@ -195,7 +195,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_overfit_samples', type=int, default=-1, help="Number of samples to overfit on (if positive)")
     parser.add_argument('--validation_set_size', type=int, default=-1, 
         help="Number of samples used to compute validation metrics. By default, the entire validation dataset is used.")
-    parser.add_argument('--semantic_loss', action='store_true', help="Use semantic correction for training.")
+    parser.add_argument('--semantic_loss', type=bool, default=False, help="Use semantic correction for training.")
     args = parser.parse_args()
 
     # Initialize ClearML task
