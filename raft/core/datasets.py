@@ -375,9 +375,12 @@ def fetch_dataloader(args, TRAIN_DS='C+T+K+S+H', num_overfit_samples=-1, use_sem
 
     elif args.stage == 'viper':
         aug_params = {'crop_size': args.image_size, 'min_scale': -0.5, 'max_scale': 0.2, 'do_flip': True}
-        # virtual_kitti = VirtualKITTI(aug_params)
         viper = VIPER(aug_params, use_semseg=use_semseg)
         train_dataset = viper
+
+    elif args.stage == 'virtual_kitti':
+        aug_params = {'crop_size': args.image_size, 'min_scale': -0.5, 'max_scale': 0.2, 'do_flip': True}
+        train_dataset = VirtualKITTI(aug_params, use_semseg=use_semseg)
 
     else:
         raise AttributeError(f"Invalid training stage: {args.stage}")
