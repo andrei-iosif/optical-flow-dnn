@@ -40,9 +40,10 @@ class FlowHeadWithUncertainty(nn.Module):
 
         # Variance is constrained to be positive => use softplus activation
         mean, var = x[:, :2, :, :], x[:, 2:, :, :]
-        var = self.softplus(var)
+        # var = self.softplus(var)
+        log_var = var
 
-        return mean, var
+        return mean, log_var
 
 
 class ConvGRU(nn.Module):

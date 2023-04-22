@@ -201,10 +201,11 @@ class RaftSemanticLoss(nn.Module):
         
 
 class RaftUncertaintyLoss(nn.Module):
-    def __init__(self, gamma=0.8, max_flow=MAX_FLOW):
+    def __init__(self, gamma=0.8, max_flow=MAX_FLOW, min_variance=1e-4):
         super(RaftUncertaintyLoss, self).__init__()
         self.gamma = gamma 
         self.max_flow = max_flow
+        self.min_variance = min_variance
 
     def negative_log_likelihood_loss(self, flow_pred, flow_gt, flow_valid_mask):
         """ Compute negative log-likelihood loss for Gaussian predictions.
@@ -220,7 +221,8 @@ class RaftUncertaintyLoss(nn.Module):
         Returns:
             Loss value (float)
         """
-        pred_mean, pred_variance = flow_pred
+        pred_mean, pred_log_variance = flow_pred
+        pred_variance = torch.exp(pred_log_variance) + self.min_variance
 
         log_term = torch.sum(torch.log(pred_variance), dim=1, keepdim=True)
         diff_term = torch.sqrt(torch.sum((flow_gt - pred_mean)**2 / pred_variance, dim=1, keepdim=True))

@@ -144,7 +144,7 @@ class RAFT(nn.Module):
                 net, up_mask, flow_out = self.update_block(net, context_fmap, corr, flow)
 
             if self.args.uncertainty:
-                delta_flow, flow_var = flow_out
+                delta_flow, flow_log_var = flow_out
             else:
                 delta_flow = flow_out
 
@@ -156,15 +156,15 @@ class RAFT(nn.Module):
             if up_mask is None:
                 flow_up = upflow8(coords_1 - coords_0)
                 if self.args.uncertainty:
-                    flow_var_up = upflow8(flow_var)
+                    flow_log_var_up = upflow8(flow_log_var)
             else:
                 flow_up = self.upsample_flow(coords_1 - coords_0, up_mask)
                 # TODO: maybe need different upsampling weights for flow variance
                 if self.args.uncertainty:
-                    flow_var_up = self.upsample_flow(flow_var, up_mask)
+                    flow_log_var_up = self.upsample_flow(flow_log_var, up_mask)
             
             if self.args.uncertainty:
-                flow_predictions.append((flow_up, flow_var_up))
+                flow_predictions.append((flow_up, flow_log_var_up))
             else:
                 flow_predictions.append(flow_up)
 
