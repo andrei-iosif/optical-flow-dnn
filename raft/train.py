@@ -92,7 +92,7 @@ def train(args):
 
     total_steps = 0
     scaler = GradScaler(enabled=args.mixed_precision)
-    logger = Logger(scheduler)
+    logger = Logger(scheduler, val_freq=args.val_freq)
 
     should_keep_training = True
     while should_keep_training:
@@ -178,6 +178,7 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint_out', default="./checkpoints", help="Output folder for checkpoints")
     parser.add_argument('--small', action='store_true', help='use small model')
     parser.add_argument('--validation', type=str, nargs='+')
+    parser.add_argument('--val_freq', type=int, default=5000, help="Validation frequency (iterations)")
 
     parser.add_argument('--lr', type=float, default=0.00002)
     parser.add_argument('--num_steps', type=int, default=100000)

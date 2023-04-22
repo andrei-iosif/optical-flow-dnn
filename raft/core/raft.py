@@ -163,7 +163,10 @@ class RAFT(nn.Module):
                 if self.args.uncertainty:
                     flow_var_up = self.upsample_flow(flow_var, up_mask)
             
-            flow_predictions.append((flow_up, flow_var_up))
+            if self.args.uncertainty:
+                flow_predictions.append((flow_up, flow_var_up))
+            else:
+                flow_predictions.append(flow_up)
 
         if test_mode:
             # TODO: refactoring of evaluate.py
