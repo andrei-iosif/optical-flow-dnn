@@ -14,6 +14,41 @@
                 "--out", "${workspaceFolder}/dump/raft_sintel"
             ],
             "cwd": "${workspaceFolder}/raft/utils"
+        },
+        {
+            "name": "Python: run_dataset_visu.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/raft/utils/run_dataset_visu.py",
+            "args": [
+                "--dataset_root", "${workspaceFolder}/raft/datasets/HD1K",
+                "--out", "${workspaceFolder}/dump/"
+            ],
+            "cwd": "${workspaceFolder}/raft/utils"
+        },
+        {
+            "name": "Python: train.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/raft/train.py",
+            "args": [
+                "--name", "debug",
+                "--num_overfit_samples", "100",
+                "--validation_set_size", "10",
+                "--stage", "viper",
+                "--checkpoint_out", ".",
+                "--restore_ckpt", "../models/raft_original_models/raft-things.pth",
+                "--gpus", "0",
+                "--num_steps", "5000",
+                "--batch_size", "6",
+                "--lr", "0.0001",
+                "--image_size", "288", "960",
+                "--wdecay", "0.00001",
+                "--gamma", "0.85",
+                "--seed", "1234",
+                "--semantic_loss", "true",
+            ],
+            "cwd": "${workspaceFolder}/raft"
         }
     ]
 }

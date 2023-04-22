@@ -1,5 +1,5 @@
 #!/bin/bash
 
-python -u evaluate.py --model checkpoints/raft-chairs.pth --dataset chairs --small --experiment_name raft_small_train_chairs_eval_chairs
-python -u evaluate.py --model checkpoints/raft-chairs.pth --dataset sintel --small --experiment_name raft_small_train_chairs_eval_sintel
-python -u evaluate.py --model checkpoints/raft-chairs.pth --dataset kitti --small --experiment_name raft_small_train_chairs_eval_kitti
+python -u evaluate.py --model ../checkpoints/raft_semantic/raft_viper_baseline_seed_0/raft-viper.pth --dataset viper --experiment_name eval_raft_viper_baseline_seed_0 --mixed_precision
+# python -u evaluate.py --model ../checkpoints/raft_semantic/raft_viper_baseline_seed_42/raft-viper.pth --dataset viper --experiment_name eval_raft_viper_baseline_seed_42 --mixed_precision
+# python -u evaluate.py --model ../checkpoints/raft_semantic/raft_viper_baseline_seed_1234/raft-viper.pth --dataset viper --experiment_name eval_raft_viper_baseline_seed_1234 --mixed_precision
