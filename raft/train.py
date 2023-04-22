@@ -57,6 +57,9 @@ def fetch_loss_func(args):
     if args.semantic_loss:
         print("Training using semantic RAFT loss")
         return losses.RaftSemanticLoss(gamma=args.gamma)
+    elif args.uncertainty:
+        print("Training using RAFT uncertainty loss")
+        return losses.RaftUncertaintyLoss(gamma=args.gamma)
     else:
         print("Training using base RAFT loss")
         return losses.RaftLoss(gamma=args.gamma)
@@ -94,7 +97,7 @@ def train(args):
     should_keep_training = True
     while should_keep_training:
 
-        for batch_idx, data_blob in enumerate(train_loader):
+        for _, data_blob in enumerate(train_loader):
             optimizer.zero_grad()
 
             # Unpack data sample

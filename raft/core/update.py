@@ -23,24 +23,24 @@ class FlowHead(nn.Module):
 
 class FlowHeadWithUncertainty(nn.Module):
     """ Predicts residual flow, as a probability distribution.
-    For each flow component, predicts the parameters of the distribution that describes.
 
-    Example: if we assume the output flow has Gaussian distribution, we predict both the mean
-    and the variance of that distribution
+    If we assume the output flow has Gaussian distribution, we predict both the mean and the variance of that distribution.
     """
     def __init__(self, input_dim=128, hidden_dim=256):
         super(FlowHeadWithUncertainty, self).__init__()
         self.conv1 = nn.Conv2d(input_dim, hidden_dim, 3, padding=1)
+
+        # Double the number of output channels => mean and variance for both flow components
         self.conv2 = nn.Conv2d(hidden_dim, 4, 3, padding=1)
         self.relu = nn.ReLU(inplace=True)
-        self.softplus = nn.Softplus()
+        self.elu = nn.ELU()
 
     def forward(self, x):
         x = self.conv2(self.relu(self.conv1(x)))
 
-        # Variance is constrained to be positive
+        # Variance is constrained to be positive => use modified ELU activation
         mean, var = x[:, :2, :, :], x[:, 2:, :, :]
-        var = self.softplus(var)
+        var = self.elu(var) + 1 + 1e-15
 
         return mean, var
 
@@ -237,7 +237,7 @@ class BasicUpdateBlock(nn.Module):
         # Pass through GRU
         net = self.gru(net, context_fmap)
 
-        # Decode residual flow
+        # Decode residual flow (and optionally, the uncertainty)
         delta_flow = self.flow_head(net)
 
         # Not sure if this is really necessary

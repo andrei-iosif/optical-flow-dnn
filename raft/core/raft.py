@@ -141,7 +141,12 @@ class RAFT(nn.Module):
             # Run refinement step
             flow = coords_1 - coords_0
             with autocast(enabled=self.args.mixed_precision):
-                net, up_mask, delta_flow = self.update_block(net, context_fmap, corr, flow)
+                net, up_mask, flow_out = self.update_block(net, context_fmap, corr, flow)
+
+            if self.args.uncertainty:
+                delta_flow, flow_var = flow_out
+            else:
+                delta_flow = flow_out
 
             # Update flow estimation
             # F(t+1) = F(t) + \Delta(t)
@@ -150,12 +155,18 @@ class RAFT(nn.Module):
             # Upsample predictions
             if up_mask is None:
                 flow_up = upflow8(coords_1 - coords_0)
+                if self.args.uncertainty:
+                    flow_var_up = upflow8(flow_var)
             else:
                 flow_up = self.upsample_flow(coords_1 - coords_0, up_mask)
+                # TODO: maybe need different upsampling weights for flow variance
+                if self.args.uncertainty:
+                    flow_var_up = self.upsample_flow(flow_var, up_mask)
             
-            flow_predictions.append(flow_up)
+            flow_predictions.append((flow_up, flow_var_up))
 
         if test_mode:
+            # TODO: refactoring of evaluate.py
             return coords_1 - coords_0, flow_up
             
         return flow_predictions

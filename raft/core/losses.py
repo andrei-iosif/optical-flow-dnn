@@ -200,48 +200,61 @@ class RaftSemanticLoss(nn.Module):
         return total_loss, metrics
         
 
-def elementwise_laplacian(flow_pred, flow_gt):
-    predictions_mean, predictions_variance = flow_pred
-
-    log_var = torch.sum(torch.log(predictions_variance), dim=1, keepdim=True)
-    abs_diff = (flow_gt - predictions_mean).abs()
-
-    weighted_abs_diff = torch.sum(abs_diff / torch.sqrt(predictions_variance), dim=1, keepdim=True)
-
-    return weighted_abs_diff + log_var
-
-
-def endpoint_error(flow_pred, flow_gt):
-    flow_pred_mean, _ = flow_pred
-    return torch.sum((flow_pred_mean[-1] - flow_gt) ** 2, dim=1).sqrt()
-
-
-class LaplacianLogLikelihoodLoss(nn.Module):
-    def __init__(self, gamma=0.8, max_flow=400):
-        super(LaplacianLogLikelihoodLoss, self).__init__()
+class RaftUncertaintyLoss(nn.Module):
+    def __init__(self, gamma=0.8, max_flow=MAX_FLOW):
+        super(RaftUncertaintyLoss, self).__init__()
         self.gamma = gamma 
         self.max_flow = max_flow
 
+    def negative_log_likelihood_loss(self, flow_pred, flow_gt, flow_valid_mask):
+        """ Compute negative log-likelihood loss for Gaussian predictions.
+
+        Loss is defined as loss = log(sigma) + ((gt - mean)^2 / sigma)^(1/2)
+        See https://arxiv.org/pdf/1805.11327.pdf
+
+        Args:
+            flow_pred (tuple(torch.Tensor)): Flow mean and variance, each with shape [B, 2, H, W]
+            flow_gt (torch.Tensor): Flow ground truth, with shape [B, 2, H, W]
+            flow_valid_mask (torch.Tensor): Flow validity mask, shape [B, 1, H, W]
+
+        Returns:
+            Loss value (float)
+        """
+        pred_mean, pred_variance = flow_pred
+
+        diff = torch.pow(torch.pow(flow_gt - pred_mean, 2) / torch.sqrt(pred_variance), 0.5)
+
+        nll_loss = torch.log(pred_variance) + diff
+
+        return (flow_valid_mask * nll_loss).mean()
+
+    def endpoint_error(self, flow_pred, flow_gt):
+        flow_pred_mean, _ = flow_pred
+        return torch.sum((flow_pred_mean[-1] - flow_gt) ** 2, dim=1).sqrt()
+
     def forward(self, flow_preds, flow_gt, flow_valid_mask):
-        n_predictions = len(flow_preds)
+        num_predictions = len(flow_preds)
         total_loss = 0.0
 
         # Exclude invalid pixels and extremely large displacements
         mag = torch.sum(flow_gt ** 2, dim=1).sqrt()
-        valid = (flow_valid_mask >= 0.5) & (mag < self.max_flow)
+        valid_mask = (flow_valid_mask >= 0.5) & (mag < self.max_flow)
 
-        for i in range(n_predictions):
-            loss_weight = self.gamma ** (n_predictions - i - 1)
-            loss = elementwise_laplacian(flow_preds[i], flow_gt)
+        # Convert from [B, H, W] to [B, 1, H, W]
+        valid_mask = valid_mask[:, None]
+
+        for i in range(num_predictions):
+            loss_weight = self.gamma ** (num_predictions - i - 1)
+            loss = self.negative_log_likelihood_loss(flow_preds[i], flow_gt, valid_mask)
 
             # Final loss is weighted sum of losses for each flow refinement iteration
-            total_loss += loss_weight * (valid[:, None] * loss).mean()
+            total_loss += loss_weight * loss
 
-        epe = endpoint_error(flow_preds[-1], flow_gt)
-        epe = epe.view(-1)[valid.view(-1)]
+        epe = self.endpoint_error(flow_preds[-1], flow_gt)
+        epe = epe.view(-1)[valid_mask.view(-1)]
 
         metrics = {
-            'flow_loss': total_loss.mean().item(),
+            'flow_loss': total_loss.item(),
             'epe': epe.mean().item(),
             '1px': (epe < 1).float().mean().item(),
             '3px': (epe < 3).float().mean().item(),
