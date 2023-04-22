@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Uncertainty experiments
+python -u train.py --name overfit_raft_chairs_baseline_100_sample_seed_0 --num_overfit_samples 100 --checkpoint_out=../checkpoints/raft_uncertainty/overfit_raft_chairs_baseline_100_sample_seed_0 --stage chairs --validation chairs --gpus 0 --num_steps 5000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 --seed 0 --uncertainty false
 python -u train.py --name overfit_raft_chairs_uncertainty_100_sample_seed_0 --num_overfit_samples 100 --checkpoint_out=../checkpoints/raft_uncertainty/overfit_raft_chairs_uncertainty_100_sample_seed_0 --stage chairs --validation chairs --gpus 0 --num_steps 5000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 --seed 0 --uncertainty true
 
 

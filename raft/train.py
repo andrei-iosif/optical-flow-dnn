@@ -198,7 +198,7 @@ if __name__ == '__main__':
     parser.add_argument('--validation_set_size', type=int, default=-1, 
         help="Number of samples used to compute validation metrics. By default, the entire validation dataset is used.")
     parser.add_argument('--semantic_loss', type=bool, default=False, help="Use semantic correction for training.")
-    parser.add_argument('--uncertainty', type=bool, default=False, help='Enable flow uncertainty estimation')
+    parser.add_argument('--uncertainty', action='store_true', help='Enable flow uncertainty estimation')
     args = parser.parse_args()
 
     # Initialize ClearML task
@@ -209,5 +209,8 @@ if __name__ == '__main__':
 
     if not os.path.isdir(args.checkpoint_out):
         os.makedirs(args.checkpoint_out, exist_ok=True)
+
+    if "uncertainty" not in args:
+        args.uncertainty = False
 
     train(args)

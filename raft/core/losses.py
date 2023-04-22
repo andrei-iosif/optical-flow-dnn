@@ -222,9 +222,9 @@ class RaftUncertaintyLoss(nn.Module):
         """
         pred_mean, pred_variance = flow_pred
 
-        diff = torch.pow(torch.pow(flow_gt - pred_mean, 2) / torch.sqrt(pred_variance), 0.5)
-
-        nll_loss = torch.log(pred_variance) + diff
+        log_term = torch.sum(torch.log(pred_variance), dim=1, keepdim=True)
+        diff_term = torch.sqrt(torch.sum((flow_gt - pred_mean)**2 / pred_variance, dim=1, keepdim=True))
+        nll_loss = log_term + diff_term
 
         return (flow_valid_mask * nll_loss).mean()
 
