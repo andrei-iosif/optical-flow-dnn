@@ -92,7 +92,7 @@ def train(args):
 
     total_steps = 0
     scaler = GradScaler(enabled=args.mixed_precision)
-    logger = Logger(scheduler, val_freq=args.val_freq)
+    logger = Logger(scheduler, val_freq=args.val_freq, debug=args.debug)
 
     should_keep_training = True
     while should_keep_training:
@@ -115,6 +115,8 @@ def train(args):
 
             # Forward pass (default: 12 iterations)
             flow_predictions = model(image_1, image_2, iters=args.iters)
+
+            logger.debug_log(flow_predictions, flow)
 
             # Loss computation
             if use_semseg:
@@ -200,6 +202,7 @@ if __name__ == '__main__':
         help="Number of samples used to compute validation metrics. By default, the entire validation dataset is used.")
     parser.add_argument('--semantic_loss', type=bool, default=False, help="Use semantic correction for training.")
     parser.add_argument('--uncertainty', action='store_true', help='Enable flow uncertainty estimation')
+    parser.add_argument('--debug', action='store_true', help="In debug mode, additional plots are generated and uploaded to ClearML")
     args = parser.parse_args()
 
     # Initialize ClearML task
@@ -213,5 +216,7 @@ if __name__ == '__main__':
 
     if "uncertainty" not in args:
         args.uncertainty = False
+    if "debug" not in args:
+        args.debug = False
 
     train(args)

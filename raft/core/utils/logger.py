@@ -1,4 +1,6 @@
+import torch
 from torch.utils.tensorboard import SummaryWriter
+
 
 SUM_FREQ = 100
 VAL_FREQ = 5000
@@ -7,7 +9,7 @@ VAL_FREQ = 5000
 class Logger:
     """ Class used for logging metrics to TensorBoard. """
 
-    def __init__(self, scheduler, sum_freq=SUM_FREQ, val_freq=VAL_FREQ):
+    def __init__(self, scheduler, sum_freq=SUM_FREQ, val_freq=VAL_FREQ, debug=False):
         """ Initialize logger.
 
         Args:
@@ -21,6 +23,7 @@ class Logger:
         self.total_steps = 0
         self.running_loss = {}
         self.writer = None
+        self.debug = debug
 
     def _print_training_status(self):
         # Print training status
@@ -66,3 +69,36 @@ class Logger:
 
     def close(self):
         self.writer.close()
+
+    def print_summary_statistics(self, x, name):
+        with torch.no_grad():
+            min_x = torch.min(x)
+            max_x = torch.max(x)
+            median_x = torch.median(x)
+            std_x, mean_x = torch.std_mean(x)
+            print(f"Stats for {name}: min={min_x.item()}, median={median_x.item()}, max={max_x.item()}, mean={mean_x.item()}, std={std_x.item()}")
+
+    def debug_log(self, flow_predictions, flow_gt):
+        if not self.debug:
+            return
+
+        if self.total_steps % self.sum_freq == self.sum_freq - 1:
+            with torch.no_grad():
+                u_flow, v_flow = flow_gt[:, 0, :, :], flow_gt[:, 1, :, :]
+                self.print_summary_statistics(u_flow, f"u_flow_gt")
+                self.print_summary_statistics(v_flow, f"v_flow_gt")
+
+                for idx, flow_pred in enumerate(flow_predictions):
+                    if isinstance(flow_pred, tuple):
+                        flow, flow_var = flow_pred
+                    else:
+                        flow, flow_var = flow_pred, None
+
+                    u_flow, v_flow = flow[:, 0, :, :], flow[:, 1, :, :]
+                    self.print_summary_statistics(u_flow, f"u_flow_iter_{idx}")
+                    self.print_summary_statistics(v_flow, f"v_flow_iter_{idx}")
+
+                    if flow_var is not None:
+                        u_flow_var, v_flow_var = flow_var[:, 0, :, :], flow_var[:, 1, :, :]
+                        self.print_summary_statistics(u_flow_var, f"u_flow_var_iter_{idx}")
+                        self.print_summary_statistics(v_flow_var, f"v_flow_var_iter_{idx}")

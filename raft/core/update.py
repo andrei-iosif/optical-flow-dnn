@@ -33,17 +33,19 @@ class FlowHeadWithUncertainty(nn.Module):
         # Double the number of output channels => mean and variance for both flow components
         self.conv2 = nn.Conv2d(hidden_dim, 4, 3, padding=1)
         self.relu = nn.ReLU(inplace=True)
-        self.softplus = nn.Softplus()
+        # self.softplus = nn.Softplus()
 
     def forward(self, x):
         x = self.conv2(self.relu(self.conv1(x)))
 
-        # Variance is constrained to be positive => use softplus activation
         mean, var = x[:, :2, :, :], x[:, 2:, :, :]
-        # var = self.softplus(var)
-        log_var = var
 
-        return mean, log_var
+        # Variance is constrained to be positive => use softplus activation
+        # var = self.softplus(var)
+        # log_var = var
+        var = nn.ELU()(var) + 1 + 1e-5
+
+        return mean, var
 
 
 class ConvGRU(nn.Module):
