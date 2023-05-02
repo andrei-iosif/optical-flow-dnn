@@ -1,21 +1,18 @@
-import sys
-sys.path.append('core')
+# import sys
+# sys.path.append('core')
 
-from PIL import Image
 import argparse
 import os
-import time
 import numpy as np
 import torch
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
+import torch.utils.data as data
 
-import datasets
-from utils import flow_viz
-from utils import frame_utils
+import core.datasets as datasets
+from core.utils import frame_utils
 
-from raft import RAFT
-from utils.utils import InputPadder, forward_interpolate
+from core.raft import RAFT
+from core.utils.utils import InputPadder, forward_interpolate
+from core.utils.random import set_random_seed
 
 from clearml import Task
 
@@ -79,6 +76,8 @@ def validate_chairs(model, iters=24):
     epe_list = []
 
     val_dataset = datasets.FlyingChairs(split='validation')
+    print(f"Validating on FlyingChairs (val) (size = {len(val_dataset)})")
+
     for val_id in range(len(val_dataset)):
         image1, image2, flow_gt, _ = val_dataset[val_id]
         image1 = image1[None].cuda()
@@ -100,6 +99,8 @@ def validate_sintel(model, iters=32):
     results = {}
     for dstype in ['clean', 'final']:
         val_dataset = datasets.MpiSintel(split='training', dstype=dstype)
+        print(f"Validating on Sintel ({dstype}) (train) (size = {len(val_dataset)})")
+
         epe_list = []
 
         for val_id in range(len(val_dataset)):
@@ -133,6 +134,7 @@ def validate_kitti(model, iters=24):
     """ Peform validation using the KITTI-2015 (train) split """
     model.eval()
     val_dataset = datasets.KITTI(split='training')
+    print(f"Validating on KITTI training (size = {len(val_dataset)})")
 
     out_list, epe_list = [], []
     for val_id in range(len(val_dataset)):
@@ -143,7 +145,7 @@ def validate_kitti(model, iters=24):
         padder = InputPadder(image1.shape, mode='kitti')
         image1, image2 = padder.pad(image1, image2)
 
-        flow_low, flow_pr = model(image1, image2, iters=iters, test_mode=True)
+        _, flow_pr = model(image1, image2, iters=iters, test_mode=True)
         flow = padder.unpad(flow_pr[0]).cpu()
 
         epe = torch.sum((flow - flow_gt)**2, dim=0).sqrt()
@@ -167,6 +169,64 @@ def validate_kitti(model, iters=24):
     return {'kitti-epe': epe, 'kitti-f1': f1}
 
 
+@torch.no_grad()
+def validate_viper(model, iters=24, subset_size=-1):
+    """ Peform validation using the VIPER (val) split """
+    model.eval()
+    # torch.cuda.empty_cache()
+
+    results = {}
+   
+    val_dataset = datasets.VIPER(split='val')
+    
+    # Create data subset, in case we don't want to evaluate on entire dataset
+    if subset_size > 0:
+        rng = set_random_seed(0)
+        val_dataset_size = len(val_dataset)
+        assert val_dataset_size > subset_size, f"Cannot create subset of size {subset_size} from dataset of size {val_dataset_size}"
+
+        # Generate a set of random indexes (should be deterministic)
+        val_idx, _ = data.random_split(
+                range(0, val_dataset_size), 
+                [subset_size, val_dataset_size - subset_size],
+                generator=rng)
+        
+        val_dataset = data.Subset(val_dataset, val_idx)
+        print("Validation samples: ", [i for i in val_idx])
+
+    print(f"Validating on VIPER (val) (size = {len(val_dataset)})")
+
+    epe_list = []
+
+    for val_id in range(len(val_dataset)):
+        image1, image2, flow_gt, _ = val_dataset[val_id]
+        image1 = image1[None].cuda()
+        image2 = image2[None].cuda()
+
+        padder = InputPadder(image1.shape)
+        image1, image2 = padder.pad(image1, image2)
+
+        _, flow_pr = model(image1, image2, iters=iters, test_mode=True)
+        flow = padder.unpad(flow_pr[0]).cpu()
+
+        epe = torch.sum((flow - flow_gt)**2, dim=0).sqrt()
+        epe_list.append(epe.view(-1).cpu().numpy())
+
+    epe_all = np.concatenate(epe_list)
+    epe = np.mean(epe_all)
+    px1 = np.mean(epe_all<1)
+    px3 = np.mean(epe_all<3)
+    px5 = np.mean(epe_all<5)
+
+    print("Validation (%s) EPE: %f, 1px: %f, 3px: %f, 5px: %f" % ("VIPER", epe, px1, px3, px5))
+    results["viper-val-epe"] = np.mean(epe_list)
+    results["viper-val-px1"] = px1
+    results["viper-val-px3"] = px3
+    results["viper-val-px5"] = px5
+
+    return results
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', help="restore checkpoint")
@@ -175,7 +235,11 @@ if __name__ == '__main__':
     parser.add_argument('--mixed_precision', action='store_true', help='use mixed precision')
     parser.add_argument('--alternate_corr', action='store_true', help='use efficent correlation implementation')
     parser.add_argument('--experiment_name', help="Name of experiment (for reproducibility)")
+    parser.add_argument('--uncertainty', action='store_true', help='Enable flow uncertainty estimation')
     args = parser.parse_args()
+
+    if "uncertainty" not in args:
+        args.uncertainty = False
 
     task = Task.init(project_name='RAFT', task_name=args.experiment_name, task_type=Task.TaskTypes.testing)
 
@@ -197,5 +261,11 @@ if __name__ == '__main__':
 
         elif args.dataset == 'kitti':
             validate_kitti(model.module)
+        
+        elif args.dataset == 'viper':
+            validate_viper(model.module, subset_size=2000)
+
+        else:
+            raise AttributeError(f"Invalid validation dataset: {args.dataset}")
 
 

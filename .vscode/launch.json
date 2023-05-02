@@ -5,15 +5,40 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: train.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/raft/train.py",
+            "args": [
+                "--name", "overfit_raft_chairs_uncertainty_100_sample_seed_0",
+                "--num_overfit_samples", "100",
+                "--stage", "chairs",
+                "--validation", "chairs",
+                "--checkpoint_out", ".",
+                // "--restore_ckpt", "../models/raft_original_models/raft-things.pth",
+                "--gpus", "0",
+                "--num_steps", "5000",
+                "--batch_size", "10",
+                "--lr", "0.0004",
+                "--image_size", "368", "496",
+                "--wdecay", "0.0001",
+                "--gamma", "0.85",
+                "--seed", "0",
+                // "--uncertainty", "False",
+            ],
+            "cwd": "${workspaceFolder}/raft"
+        },
+        {
             "name": "Python: run_inference_visu.py",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/raft/utils/run_inference_visu.py",
+            "module": "core.utils.visu.run_inference_visu",
             "args": [
-                "--model", "${workspaceFolder}/checkpoints/raft/checkpoints/raft-sintel.pth",
-                "--out", "${workspaceFolder}/dump/raft_sintel"
+                "--model", "../checkpoints/raft_viper/train_raft_viper_seed_1234_mixed/raft-viper.pth",
+                "--mixed_precision",
+                "--out", "../dump/inference/raft_viper_seed_1234_mixed_eval_kitti",
             ],
-            "cwd": "${workspaceFolder}/raft/utils"
+            "cwd": "${workspaceFolder}/raft"
         }
     ]
 }

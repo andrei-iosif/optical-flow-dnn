@@ -28,7 +28,7 @@ def forward_interpolate(flow):
     dx, dy = flow[0], flow[1]
 
     ht, wd = dx.shape
-    x0, y0 = np.meshgrid(np.arange(wd), np.arange(ht))
+    x0, y0 = np.meshgrid(np.arange(wd), np.arange(ht), indexing="ij")
 
     x1 = x0 + dx
     y1 = y0 + dy
@@ -55,15 +55,29 @@ def forward_interpolate(flow):
 
 
 def bilinear_sampler(img, coords, mode='bilinear', mask=False):
-    """ Wrapper for grid_sample, uses pixel coordinates """
+    """ Bilinear sampling. Wrapper over grid_sample.
+
+    Args:
+        img (torch.Tensor): Image to sample from, shape [B, C, H_in, W_in]
+        coords (torch.Tensor): Sampling coordinates, shape [B, H_out, W_out, 2]
+        mode (str, optional): Sampling mode. Defaults to 'bilinear'.
+        mask (bool, optional): If true, return a mask containing 1 if sampling coordinates are inside input image, and 0 otherwise. Defaults to False.
+
+    Returns:
+        Sampled image, with shape [B, C, H_out, W_out]
+    """
+
     H, W = img.shape[-2:]
-    xgrid, ygrid = coords.split([1,1], dim=-1)
-    xgrid = 2*xgrid/(W-1) - 1
-    ygrid = 2*ygrid/(H-1) - 1
+
+    # Normalize sampling coordinates to [-1, 1]
+    xgrid, ygrid = coords.split([1, 1], dim=-1)
+    xgrid = 2 * xgrid / (W-1) - 1
+    ygrid = 2 * ygrid / (H-1) - 1
 
     grid = torch.cat([xgrid, ygrid], dim=-1)
-    img = F.grid_sample(img, grid, align_corners=True)
+    img = F.grid_sample(img, grid, align_corners=True, mode=mode)
 
+    # Compute mask for sampling coords inside/outside input image
     if mask:
         mask = (xgrid > -1) & (ygrid > -1) & (xgrid < 1) & (ygrid < 1)
         return img, mask.float()
@@ -72,11 +86,22 @@ def bilinear_sampler(img, coords, mode='bilinear', mask=False):
 
 
 def coords_grid(batch, ht, wd, device):
-    coords = torch.meshgrid(torch.arange(ht, device=device), torch.arange(wd, device=device))
+    """ Create coordinate grids for a batch of image pairs.
+
+    Args:
+        batch (int): Batch size
+        ht (int): Image height
+        wd (int): Image width
+        device (str): Target device for created tensor
+
+    Returns:
+        Coordinate grids with shape [B, 2, H, W]
+    """
+    coords = torch.meshgrid(torch.arange(ht, device=device), torch.arange(wd, device=device), indexing="ij")
     coords = torch.stack(coords[::-1], dim=0).float()
     return coords[None].repeat(batch, 1, 1, 1)
 
 
 def upflow8(flow, mode='bilinear'):
     new_size = (8 * flow.shape[2], 8 * flow.shape[3])
-    return  8 * F.interpolate(flow, size=new_size, mode=mode, align_corners=True)
+    return 8 * F.interpolate(flow, size=new_size, mode=mode, align_corners=True)

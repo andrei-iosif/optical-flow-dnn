@@ -4,7 +4,14 @@ import torch.nn.functional as F
 
 
 class FlowHead(nn.Module):
+    """ Flow decoder module. Receives as input the hidden state from the ConvGRU. """
     def __init__(self, input_dim=128, hidden_dim=256):
+        """ Initialize module.
+
+        Args:
+            input_dim (int, optional): Number of input channels. Defaults to 128.
+            hidden_dim (int, optional): Number of channels from first layer output. Defaults to 256.
+        """
         super(FlowHead, self).__init__()
         self.conv1 = nn.Conv2d(input_dim, hidden_dim, 3, padding=1)
         self.conv2 = nn.Conv2d(hidden_dim, 2, 3, padding=1)
@@ -13,7 +20,41 @@ class FlowHead(nn.Module):
     def forward(self, x):
         return self.conv2(self.relu(self.conv1(x)))
 
+
+class FlowHeadWithUncertainty(nn.Module):
+    """ Predicts residual flow, as a probability distribution.
+
+    If we assume the output flow has Gaussian distribution, we predict both the mean and the variance of that distribution.
+    """
+    def __init__(self, input_dim=128, hidden_dim=256):
+        super(FlowHeadWithUncertainty, self).__init__()
+        self.conv1 = nn.Conv2d(input_dim, hidden_dim, 3, padding=1)
+
+        # Double the number of output channels => mean and variance for both flow components
+        self.conv2 = nn.Conv2d(hidden_dim, 4, 3, padding=1)
+        self.relu = nn.ReLU(inplace=True)
+        # self.softplus = nn.Softplus()
+
+    def forward(self, x):
+        x = self.conv2(self.relu(self.conv1(x)))
+
+        mean, var = x[:, :2, :, :], x[:, 2:, :, :]
+
+        # Variance is constrained to be positive => use softplus activation
+        # var = self.softplus(var)
+        # log_var = var
+        # var = nn.ELU()(var) + 1 + 1e-5
+
+        # Predict log(var)
+
+        # Exponential activation
+        var = torch.exp(var)
+
+        return mean, var
+
+
 class ConvGRU(nn.Module):
+    """ GRU layer with convolutional inputs and hidden state. """
     def __init__(self, hidden_dim=128, input_dim=192+128):
         super(ConvGRU, self).__init__()
         self.convz = nn.Conv2d(hidden_dim+input_dim, hidden_dim, 3, padding=1)
@@ -30,7 +71,9 @@ class ConvGRU(nn.Module):
         h = (1-z) * h + z * q
         return h
 
+
 class SepConvGRU(nn.Module):
+    """ ConvGru layer with separable convolutions. """
     def __init__(self, hidden_dim=128, input_dim=192+128):
         super(SepConvGRU, self).__init__()
         self.convz1 = nn.Conv2d(hidden_dim+input_dim, hidden_dim, (1,5), padding=(0,2))
@@ -40,7 +83,6 @@ class SepConvGRU(nn.Module):
         self.convz2 = nn.Conv2d(hidden_dim+input_dim, hidden_dim, (5,1), padding=(2,0))
         self.convr2 = nn.Conv2d(hidden_dim+input_dim, hidden_dim, (5,1), padding=(2,0))
         self.convq2 = nn.Conv2d(hidden_dim+input_dim, hidden_dim, (5,1), padding=(2,0))
-
 
     def forward(self, h, x):
         # horizontal
@@ -59,42 +101,83 @@ class SepConvGRU(nn.Module):
 
         return h
 
+
 class SmallMotionEncoder(nn.Module):
+    """ Encodes correlation feature map and estimated flow from previous iteration. """
+
     def __init__(self, args):
         super(SmallMotionEncoder, self).__init__()
+
+        # Number of channels for correlation feature map
         cor_planes = args.corr_levels * (2*args.corr_radius + 1)**2
+
+        # Convolution for correlation feature map
         self.convc1 = nn.Conv2d(cor_planes, 96, 1, padding=0)
+
+        # Convolutions for flow
         self.convf1 = nn.Conv2d(2, 64, 7, padding=3)
         self.convf2 = nn.Conv2d(64, 32, 3, padding=1)
+
+        # Output convolution
         self.conv = nn.Conv2d(128, 80, 3, padding=1)
 
     def forward(self, flow, corr):
+        """
+        Args:
+            flow (torch.Tensor): Optical flow estimation from previous iteration, shape [B, 2, H, W]
+            corr (torch.Tensor): Correlation feature map, shape [B, corr_levels * (2*r+1)^2, H, W]
+
+        Returns:
+            Motion feature map, shape [B, 80, H, W]
+        """
+        # Correlation feature map
         cor = F.relu(self.convc1(corr))
+
+        # Flow
         flo = F.relu(self.convf1(flow))
         flo = F.relu(self.convf2(flo))
+
+        # Concatenate correlation feature map and flow
         cor_flo = torch.cat([cor, flo], dim=1)
         out = F.relu(self.conv(cor_flo))
+
         return torch.cat([out, flow], dim=1)
 
+
 class BasicMotionEncoder(nn.Module):
+    """ Encodes correlation feature map and estimated flow from previous iteration. """
+
     def __init__(self, args):
         super(BasicMotionEncoder, self).__init__()
+
+        # Number of channels for correlation feature map
         cor_planes = args.corr_levels * (2*args.corr_radius + 1)**2
+
+        # Convolutions for correlation feature map
         self.convc1 = nn.Conv2d(cor_planes, 256, 1, padding=0)
         self.convc2 = nn.Conv2d(256, 192, 3, padding=1)
+
+        # Convolutions for flow
         self.convf1 = nn.Conv2d(2, 128, 7, padding=3)
         self.convf2 = nn.Conv2d(128, 64, 3, padding=1)
+
+        # Output convolution
         self.conv = nn.Conv2d(64+192, 128-2, 3, padding=1)
 
     def forward(self, flow, corr):
+        # Correlation features
         cor = F.relu(self.convc1(corr))
         cor = F.relu(self.convc2(cor))
+
+        # Flow
         flo = F.relu(self.convf1(flow))
         flo = F.relu(self.convf2(flo))
 
+        # Concatenate correlation feature map and flow
         cor_flo = torch.cat([cor, flo], dim=1)
         out = F.relu(self.conv(cor_flo))
         return torch.cat([out, flow], dim=1)
+
 
 class SmallUpdateBlock(nn.Module):
     def __init__(self, args, hidden_dim=96):
@@ -111,29 +194,65 @@ class SmallUpdateBlock(nn.Module):
 
         return net, None, delta_flow
 
+
 class BasicUpdateBlock(nn.Module):
+    """ Update block used for iterative flow refinement in base RAFT. """
+
     def __init__(self, args, hidden_dim=128, input_dim=128):
+        """
+        Args:
+            args (argparse.Namespace): Command-line arguments
+            hidden_dim (int, optional): Number of channels for ConvGRU hidden dimension. Defaults to 128.
+            input_dim (int, optional): Number of channels for input dimension. Defaults to 128.
+        """
         super(BasicUpdateBlock, self).__init__()
         self.args = args
-        self.encoder = BasicMotionEncoder(args)
-        self.gru = SepConvGRU(hidden_dim=hidden_dim, input_dim=128+hidden_dim)
-        self.flow_head = FlowHead(hidden_dim, hidden_dim=256)
 
+        # Motion encoder
+        self.encoder = BasicMotionEncoder(args)
+
+        # ConvGRU with separable convolutions
+        self.gru = SepConvGRU(hidden_dim=hidden_dim, input_dim=128+hidden_dim)
+
+        if self.args.uncertainty:
+            self.flow_head = FlowHeadWithUncertainty(hidden_dim, hidden_dim=256)
+        else:
+            self.flow_head = FlowHead(hidden_dim, hidden_dim=256)
+
+        # Upsampling mask decoder
         self.mask = nn.Sequential(
             nn.Conv2d(128, 256, 3, padding=1),
             nn.ReLU(inplace=True),
             nn.Conv2d(256, 64*9, 1, padding=0))
 
-    def forward(self, net, inp, corr, flow, upsample=True):
-        motion_features = self.encoder(flow, corr)
-        inp = torch.cat([inp, motion_features], dim=1)
+    def forward(self, net, context_fmap, corr, flow):
+        """ 
+        Args:
+            net (torch.Tensor): Hidden state of ConvGRU, shape [B, hidden_dim, H, W]
+            context_fmap (torch.Tensor): Context feature map, shape [B, input_dim, H, W]
+            corr (torch.Tensor): Correlation feature map, shape [B, corr_levels * (2*r+1)^2, H, W]
+            flow (torch.Tensor): Optical flow estimation from previous iteration, shape [B, 2, H, W]
 
-        net = self.gru(net, inp)
+        Returns:
+            ConvGRU hidden state, upsampling mask, residual flow
+        """
+        # Encode motion features
+        motion_features = self.encoder(flow, corr)
+
+        # Concatenate context features and motion features
+        context_fmap = torch.cat([context_fmap, motion_features], dim=1)
+
+        # Pass through GRU
+        net = self.gru(net, context_fmap)
+
+        # Decode residual flow (and optionally, the uncertainty)
         delta_flow = self.flow_head(net)
 
+        # Not sure if this is really necessary
         # scale mask to balence gradients
-        mask = .25 * self.mask(net)
+        # mask = .25 * self.mask(net)
+
+        # Decode upsampling mask
+        mask = self.mask(net)
+
         return net, mask, delta_flow
-
-
-

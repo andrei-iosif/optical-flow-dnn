@@ -70,7 +70,7 @@ tar -xvf vkitti_2.0.3_forwardFlow.tar
 ### VIPER
 Official website: https://playing-for-benchmarks.org/download/
 
-Download:
+Download train set:
 ```shell
 mkdir VIPER
 cd VIPER
@@ -92,4 +92,23 @@ wget -O train_flow_40-49_0_npz16.zip "drive.google.com/u/0/uc?id=1-DA6SFtJjEtaAA
 wget -O train_flow_50-59_0_npz16.zip "drive.google.com/u/0/uc?id=1RsY8yaFlNNcP49wyZX2UI34MZx3va7EK&export=download&confirm=yes"
 wget -O train_flow_60-69_0_npz16.zip "drive.google.com/u/0/uc?id=19vKpozdNFZPNK19OocEXtx8awcpSoRU7&export=download&confirm=yes"
 wget -O train_flow_60-69_0_npz16.zip "drive.google.com/u/0/uc?id=1r1wBC2asa-E4E7U59A2Dwhetz8rV_hr-&export=download&confirm=yes"
+```
+
+
+Download validation set:
+```shell
+# Download RGB images
+wget -O val_img_00-47_0_jpg.zip "drive.google.com/u/0/uc?id=1951O6Eu-VuMHaL1vJ9V35njcj30GjPiN&export=download&confirm=yes"
+wget -O val_img_00-47_1_jpg.zip "drive.google.com/u/0/uc?id=1OqEjlrx97ThCMlQePEZPSBjqhRqPwOEd&export=download&confirm=yes"
+
+# Download semantic labels
+wget -O val_cls_00-47_0.zip "drive.google.com/u/0/uc?id=1QN2OSXTDsXPXntNrY-ojDpj-vFWjBZlK&export=download&confirm=yes"
+wget -O val_cls_00-47_1.zip "drive.google.com/u/0/uc?id=1XjXU9qSAvC1JB95ytv15yqyGemJqwK1U&export=download&confirm=yes"
+
+# Download flow labels
+wget -O val_flow_00-09_0_npz16.zip "drive.google.com/u/0/uc?id=1wy9Uk4s4golQ2JZo9l27w2gqo4DfslTA&export=download&confirm=yes"
+wget -O val_flow_10-19_0_npz16.zip "drive.google.com/u/0/uc?id=1FiI7sM3i7_Y8EOqvwFwUS3iYpJDJAflE&export=download&confirm=yes"
+wget -O val_flow_20-29_0_npz16.zip "drive.google.com/u/0/uc?id=1uEt5r7eM7llGZdhzCRRwqHM_yCx82kWy&export=download&confirm=yes" 
+wget -O val_flow_30-39_0_npz16.zip "drive.google.com/u/0/uc?id=1xurMvZQljm5b--8-2lDFybCABbc8zUgE&export=download&confirm=yes"
+wget -O val_flow_40-47_0_npz16.zip "drive.google.com/u/0/uc?id=1LGjbZdLT2R14e9cGU8aqRcJCYk3EfZFU&export=download&confirm=yes"  
 ```
