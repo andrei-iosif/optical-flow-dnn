@@ -52,17 +52,18 @@ class RaftLoss(nn.Module):
         - <K>px: percentage of pixels for which EPE is smaller than K pixel(s)
     """
 
-    def __init__(self, gamma=0.8, max_flow=MAX_FLOW, debug_iter=False):
+    def __init__(self, gamma=0.8, max_flow=MAX_FLOW, debug=False):
         """ Initialize loss.
 
         Args:
             gamma (float, optional): Weighting factor for sequence loss. Defaults to 0.8.
-            max_flow (float, optional): Maximum flow magnitude. Defaults to MAX_FLOW.        
+            max_flow (float, optional): Maximum flow magnitude. Defaults to MAX_FLOW.
+            debug (bool, optional): If True, save metrics for intermediate flow refinement iterations. Defaults to False      
         """
         super(RaftLoss, self).__init__()
         self.gamma = gamma
         self.max_flow = max_flow
-        self.debug = debug_iter
+        self.debug = debug
 
 
     def forward(self, flow_preds, flow_gt, valid_mask):
@@ -97,8 +98,9 @@ class RaftLoss(nn.Module):
 
             # DEBUG MODE
             if self.debug:
-                flow_loss_list.append(flow_loss.item())
-                epe_list.append(endpoint_error(flow_preds[i], flow_gt, valid_mask).mean().item())
+                with torch.no_grad():
+                    flow_loss_list.append(flow_loss.item())
+                    epe_list.append(endpoint_error(flow_preds[i], flow_gt, valid_mask).mean().item())
 
         # Compute EPE and other metrics for most recent prediction
         epe = endpoint_error(flow_preds[-1], flow_gt, valid_mask) 
@@ -115,8 +117,8 @@ class RaftLoss(nn.Module):
         # Save additional metrics
         if self.debug:
             for i in range(num_predictions - 1):
-                metrics[f'flow_loss_iter_{i}'] = flow_loss_list[i]
-                metrics[f'epe_iter_{i}'] = epe_list[i]
+                metrics[f'flow_loss_iter_{i:03d}'] = flow_loss_list[i]
+                metrics[f'epe_iter_{i:03d}'] = epe_list[i]
 
         return total_flow_loss, metrics
 
@@ -125,20 +127,20 @@ class RaftSemanticLoss(nn.Module):
     """ Similar to RaftLoss, with an additional term that uses the semantic labels. 
     """
 
-    def __init__(self, gamma=0.8, max_flow=MAX_FLOW, w_smooth=0.5, debug_iter=False):
+    def __init__(self, gamma=0.8, max_flow=MAX_FLOW, w_smooth=0.5, debug=False):
         """ Initialize loss.
 
         Args:
             gamma (float, optional): Weighting factor for sequence loss. Defaults to 0.8.
             max_flow (float, optional): Maximum flow magnitude. Defaults to MAX_FLOW.        
             w_semantic (float, optional): Weighting factor for semantic smoothness loss. Defaults to 0.5
-            debug_iter (bool, optional): If True, save metrics for intermediate flow refinement iterations. Defaults to False
+            debug (bool, optional): If True, save metrics for intermediate flow refinement iterations. Defaults to False
         """
         super(RaftSemanticLoss, self).__init__()
         self.gamma = gamma
         self.max_flow = max_flow
         self.w_smooth = w_smooth
-        self.debug = debug_iter
+        self.debug = debug
 
     @staticmethod
     def image_grads(img):
@@ -198,8 +200,13 @@ class RaftSemanticLoss(nn.Module):
         flow_valid_mask = flow_valid_mask[:, :, 1:, 1:]
 
         # Compute non-occlusion mask from semseg GT for both frames
-        non_occlusion_mask = ((semseg_gt_1 - semseg_gt_2).abs() < 1e-5).float()
+        non_occlusion_mask = ((semseg_gt_1 - semseg_gt_2).abs() < 1e-5)
+
+        # Crop non-occlusion mask [B, H, W] -> [B, H-1, W-1]
         non_occlusion_mask = non_occlusion_mask[:, 1:, 1:]
+
+        # Convert from [B, H, W] to [B, 1, H, W]
+        non_occlusion_mask = non_occlusion_mask[:, None]
 
         loss_mask = non_occlusion_mask * flow_valid_mask
         return torch.sum(loss_mask * semantic_loss) / torch.sum(loss_mask)
@@ -244,9 +251,10 @@ class RaftSemanticLoss(nn.Module):
 
             # DEBUG MODE
             if self.debug:
-                flow_loss_list.append(flow_loss.item())
-                semantic_loss_list.append(semantic_loss.item())
-                epe_list.append(endpoint_error(flow_preds[i], flow_gt, valid_mask).mean().item())
+                with torch.no_grad():
+                    flow_loss_list.append(flow_loss.item())
+                    semantic_loss_list.append(semantic_loss.item())
+                    epe_list.append(endpoint_error(flow_preds[i], flow_gt, valid_mask).mean().item())
 
         total_loss = total_flow_loss + self.w_smooth * total_semantic_loss
 
@@ -267,9 +275,9 @@ class RaftSemanticLoss(nn.Module):
         # Save additional metrics
         if self.debug:
             for i in range(num_predictions - 1):
-                metrics[f'flow_loss_iter_{i}'] = flow_loss_list[i]
-                metrics[f'semantic_loss_iter_{i}'] = semantic_loss_list[i]
-                metrics[f'epe_iter_{i}'] = epe_list[i]
+                metrics[f'flow_loss_iter_{i:03d}'] = flow_loss_list[i]
+                metrics[f'semantic_loss_iter_{i:03d}'] = semantic_loss_list[i]
+                metrics[f'epe_iter_{i:03d}'] = epe_list[i]
 
         return total_loss, metrics
         
