@@ -1,24 +1,19 @@
-import sys
-sys.path.append('../core')
-
 import argparse
 import torch
 
-import datasets
-from raft import RAFT
-from utils.utils import InputPadder
+import core.datasets as datasets
+from core.raft import RAFT
+from core.utils.utils import InputPadder
+from core.utils.visu.visu import predictions_visu
 
-from visu.visu import predictions_visu
 
-
-def run_visu(img_1, img_2, gt_flow, pred_flow, sample_id, output_path):
+def run_visu(img_1, gt_flow, pred_flow, sample_id, output_path):
     img_1 = img_1[0].cpu().numpy()
-    img_2 = img_2[0].cpu().numpy()
 
     gt_flow = gt_flow.cpu().numpy()
     pred_flow = pred_flow.cpu().numpy()
 
-    predictions_visu(img_1, img_2, gt_flow, pred_flow, sample_id, output_path)
+    predictions_visu(img_1, gt_flow, pred_flow, sample_id, output_path)
 
 
 def run(args):
@@ -47,10 +42,10 @@ def run(args):
             padder = InputPadder(image1.shape, mode='kitti')
             image1, image2 = padder.pad(image1, image2)
 
-            flow_low, flow_pr = model(image1, image2, iters=iters, test_mode=True)
+            _, flow_pr = model(image1, image2, iters=iters, test_mode=True)
             flow = padder.unpad(flow_pr[0]).cpu()
 
-            run_visu(image1, image2, flow_gt, flow, sample_id, args.out)
+            run_visu(image1, flow_gt, flow, sample_id, args.out)
 
 
 if __name__ == '__main__':
@@ -61,5 +56,8 @@ if __name__ == '__main__':
     parser.add_argument('--alternate_corr', action='store_true', default=False, help='use efficent correlation implementation')
     parser.add_argument('--out', help="output path")
     args = parser.parse_args()
+
+    if "uncertainty" not in args:
+        args.uncertainty = False
 
     run(args)

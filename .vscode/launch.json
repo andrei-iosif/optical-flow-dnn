@@ -27,6 +27,18 @@
                 // "--uncertainty", "False",
             ],
             "cwd": "${workspaceFolder}/raft"
+        },
+        {
+            "name": "Python: run_inference_visu.py",
+            "type": "python",
+            "request": "launch",
+            "module": "core.utils.visu.run_inference_visu",
+            "args": [
+                "--model", "../checkpoints/raft_viper/train_raft_viper_seed_1234_mixed/raft-viper.pth",
+                "--mixed_precision",
+                "--out", "../dump/inference/raft_viper_seed_1234_mixed_eval_kitti",
+            ],
+            "cwd": "${workspaceFolder}/raft"
         }
     ]
 }

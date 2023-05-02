@@ -1,3 +1,5 @@
+import math
+
 import torch
 import torch.nn as nn
 
@@ -221,16 +223,22 @@ class RaftUncertaintyLoss(nn.Module):
         Returns:
             Loss value (float)
         """
-        # pred_mean, pred_log_variance = flow_pred
-        # pred_variance = torch.exp(pred_log_variance) + self.min_variance
+        # pred_mean, pred_variance = flow_pred
+        # pred_variance = pred_variance + self.min_variance
+        # nll_loss = torch.abs(flow_gt - pred_mean) / pred_variance + torch.log(pred_variance)
 
-        # log_term = torch.sum(torch.log(pred_variance), dim=1, keepdim=True)
-        # diff_term = torch.sqrt(torch.sum((flow_gt - pred_mean)**2 / pred_variance, dim=1, keepdim=True))
-        # nll_loss = log_term + diff_term
+        pred_mean, pred_log_variance = flow_pred
+        nll_loss = torch.abs(flow_gt - pred_mean) * torch.exp(-pred_log_variance) + pred_log_variance
+
+        return (flow_valid_mask * nll_loss).mean()
+
+    def nll_loss_v3(self, flow_pred, flow_gt, flow_valid_mask):
+        # https://pytorch.org/docs/stable/generated/torch.nn.GaussianNLLLoss.html
 
         pred_mean, pred_variance = flow_pred
-        pred_variance = pred_variance + self.min_variance
-        nll_loss = torch.abs(flow_gt - pred_mean) / pred_variance + torch.log(pred_variance)
+        pred_variance = torch.clamp(pred_variance, min=self.min_variance)
+        nll_loss = 0.5 * (torch.abs(flow_gt - pred_mean) / pred_variance + torch.log(pred_variance))
+        nll_loss += 0.5 * math.log(2 * math.pi)
 
         return (flow_valid_mask * nll_loss).mean()
 
@@ -251,7 +259,7 @@ class RaftUncertaintyLoss(nn.Module):
 
         for i in range(num_predictions):
             loss_weight = self.gamma ** (num_predictions - i - 1)
-            loss = self.negative_log_likelihood_loss(flow_preds[i], flow_gt, valid_mask)
+            loss = self.nll_loss_v3(flow_preds[i], flow_gt, valid_mask)
 
             # Final loss is weighted sum of losses for each flow refinement iteration
             total_loss += loss_weight * loss

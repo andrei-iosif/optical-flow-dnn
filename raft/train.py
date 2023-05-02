@@ -206,7 +206,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Initialize ClearML task
-    task = Task.init(project_name='RAFT Uncertainty', task_name=args.name)
+    task = Task.init(project_name='RAFT', task_name=args.name)
 
     # Initial seed for RNGs; influences the initial model weights
     set_random_seed(args.seed)

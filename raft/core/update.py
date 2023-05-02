@@ -43,7 +43,12 @@ class FlowHeadWithUncertainty(nn.Module):
         # Variance is constrained to be positive => use softplus activation
         # var = self.softplus(var)
         # log_var = var
-        var = nn.ELU()(var) + 1 + 1e-5
+        # var = nn.ELU()(var) + 1 + 1e-5
+
+        # Predict log(var)
+
+        # Exponential activation
+        var = torch.exp(var)
 
         return mean, var
 

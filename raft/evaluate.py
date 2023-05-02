@@ -145,7 +145,7 @@ def validate_kitti(model, iters=24):
         padder = InputPadder(image1.shape, mode='kitti')
         image1, image2 = padder.pad(image1, image2)
 
-        flow_low, flow_pr = model(image1, image2, iters=iters, test_mode=True)
+        _, flow_pr = model(image1, image2, iters=iters, test_mode=True)
         flow = padder.unpad(flow_pr[0]).cpu()
 
         epe = torch.sum((flow - flow_gt)**2, dim=0).sqrt()
@@ -235,9 +235,13 @@ if __name__ == '__main__':
     parser.add_argument('--mixed_precision', action='store_true', help='use mixed precision')
     parser.add_argument('--alternate_corr', action='store_true', help='use efficent correlation implementation')
     parser.add_argument('--experiment_name', help="Name of experiment (for reproducibility)")
+    parser.add_argument('--uncertainty', action='store_true', help='Enable flow uncertainty estimation')
     args = parser.parse_args()
 
-    task = Task.init(project_name='RAFT Uncertainty', task_name=args.experiment_name, task_type=Task.TaskTypes.testing)
+    if "uncertainty" not in args:
+        args.uncertainty = False
+
+    task = Task.init(project_name='RAFT', task_name=args.experiment_name, task_type=Task.TaskTypes.testing)
 
     model = torch.nn.DataParallel(RAFT(args))
     model.load_state_dict(torch.load(args.model))
