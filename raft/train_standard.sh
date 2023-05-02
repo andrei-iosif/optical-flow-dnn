@@ -27,3 +27,5 @@
 
 # python -u train.py --name train_raft_viper_vkitti_seed_1234_mixed --restore_ckpt=../checkpoints/raft_viper/train_raft_viper_seed_1234_mixed/raft-viper.pth --checkpoint_out=../checkpoints/raft_viper_vkitti/train_raft_viper_vkitti_seed_1234_mixed --stage virtual_kitti --validation kitti --gpus 0 --num_steps 100000 --batch_size 6 --lr 0.0001 --image_size 288 960 --wdecay 0.0001 --seed 1234 --mixed_precision
 
+# Debug original loss function
+python -u train.py --name overfit_raft_viper_20_sample_seed_0_fixed_l1_loss --num_overfit_samples 20 --val_freq 500 --restore_ckpt ../models/raft_original_models/raft-things.pth --checkpoint_out=../checkpoints/debug --stage viper --validation kitti --gpus 0 --num_steps 2000 --batch_size 6 --lr 0.0001 --image_size 288 960 --wdecay 0.0001 --seed 0

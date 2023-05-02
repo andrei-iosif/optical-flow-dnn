@@ -56,7 +56,7 @@ def fetch_loss_func(args):
     """ Create loss function. """
     if args.semantic_loss:
         print("Training using semantic RAFT loss")
-        return losses.RaftSemanticLoss(gamma=args.gamma)
+        return losses.RaftSemanticLoss(gamma=args.gamma, debug=args.debug_iter)
     elif args.uncertainty:
         print("Training using RAFT uncertainty loss")
         return losses.RaftUncertaintyLoss(gamma=args.gamma)
@@ -203,10 +203,11 @@ if __name__ == '__main__':
     parser.add_argument('--semantic_loss', type=bool, default=False, help="Use semantic correction for training.")
     parser.add_argument('--uncertainty', action='store_true', help='Enable flow uncertainty estimation')
     parser.add_argument('--debug', action='store_true', help="In debug mode, additional plots are generated and uploaded to ClearML")
+    parser.add_argument('--debug_iter', action='store_true', help="Save metrics for all refinement iterations")
     args = parser.parse_args()
 
     # Initialize ClearML task
-    task = Task.init(project_name='RAFT', task_name=args.name)
+    task = Task.init(project_name='RAFT Debug', task_name=args.name)
 
     # Initial seed for RNGs; influences the initial model weights
     set_random_seed(args.seed)
@@ -218,5 +219,7 @@ if __name__ == '__main__':
         args.uncertainty = False
     if "debug" not in args:
         args.debug = False
+    if "debug_iter" not in args:
+        args.debug_iter = False
 
     train(args)
