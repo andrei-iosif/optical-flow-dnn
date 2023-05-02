@@ -13,6 +13,7 @@ import core.losses as losses
 from core.raft import RAFT
 from core.utils.logger import Logger
 from core.utils.random import set_random_seed
+from core.utils.training_utils import EarlyStopper
 
 import evaluate
 
@@ -62,7 +63,7 @@ def fetch_loss_func(args):
         return losses.RaftUncertaintyLoss(gamma=args.gamma)
     else:
         print("Training using base RAFT loss")
-        return losses.RaftLoss(gamma=args.gamma)
+        return losses.RaftLoss(gamma=args.gamma, debug=args.debug_iter)
 
 
 def train(args):

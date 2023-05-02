@@ -24,6 +24,22 @@ def l1_loss_fixed(flow_pred, flow_gt, valid_mask=None):
         return loss_img.mean()
 
 
+def endpoint_error(flow_pred, flow_gt, valid_mask=None):
+    """ Compute EPE metric between predicted flow and GT flow.
+
+    Args:
+        flow_pred (torch.Tensor): Predicted flow, shape [B, 2, H, W]
+        flow_gt (torch.Tensor): GT flow, shape [B, 2, H, W]
+        valid_mask (torch.Tensor, optional): Flow validity mask, shape [B, 1, H, W]. Defaults to None.
+
+    Returns:
+        EPE for each pixel, flattened to shape [B*H*W]
+    """
+    epe = torch.sum((flow_pred - flow_gt) ** 2, dim=1).sqrt()
+    epe = epe.view(-1)[valid_mask.view(-1)]
+    return epe
+
+
 class RaftLoss(nn.Module):
     """ Original loss, as defined in the paper. 
     
@@ -36,7 +52,7 @@ class RaftLoss(nn.Module):
         - <K>px: percentage of pixels for which EPE is smaller than K pixel(s)
     """
 
-    def __init__(self, gamma=0.8, max_flow=MAX_FLOW):
+    def __init__(self, gamma=0.8, max_flow=MAX_FLOW, debug_iter=False):
         """ Initialize loss.
 
         Args:
@@ -46,6 +62,7 @@ class RaftLoss(nn.Module):
         super(RaftLoss, self).__init__()
         self.gamma = gamma
         self.max_flow = max_flow
+        self.debug = debug_iter
 
 
     def forward(self, flow_preds, flow_gt, valid_mask):
@@ -55,37 +72,53 @@ class RaftLoss(nn.Module):
             flow_preds (list(torch.Tensor)): List of intermediate flow predictions.
             flow_gt (torch.Tensor): Flow ground truth.
             valid_mask (torch.Tensor): Flow validity mask; used to compute loss only for valid GT positions.
+            debug_iter (bool, optional): If True, save metrics for intermediate flow refinement iterations. Defaults to False
             
         Returns:
             (flow loss, additional metrics dict)
         """
         num_predictions = len(flow_preds)
-        flow_loss = 0.0
+        total_flow_loss = 0.0
 
         # Exclude invalid pixels and extremely large displacements
         mag = torch.sum(flow_gt ** 2, dim=1).sqrt()
         valid_mask = (valid_mask >= 0.5) & (mag < self.max_flow)
 
+        # DEBUG MODE
+        if self.debug:
+            flow_loss_list = []
+            epe_list = []
+
         # Compute L1 loss for each prediction in the sequence
         for i in range(num_predictions):
             weight = self.gamma ** (num_predictions - i - 1)
-            # loss = (flow_preds[i] - flow_gt).abs()
-            # flow_loss += weight * (valid_mask[:, None] * loss).mean()
-            flow_loss += weight * l1_loss_fixed(flow_preds[i], flow_gt, valid_mask)
+            flow_loss = l1_loss_fixed(flow_preds[i], flow_gt, valid_mask)
+            total_flow_loss += weight * flow_loss
+
+            # DEBUG MODE
+            if self.debug:
+                flow_loss_list.append(flow_loss.item())
+                epe_list.append(endpoint_error(flow_preds[i], flow_gt, valid_mask).mean().item())
 
         # Compute EPE and other metrics for most recent prediction
-        epe = torch.sum((flow_preds[-1] - flow_gt) ** 2, dim=1).sqrt()
-        epe = epe.view(-1)[valid_mask.view(-1)]
+        epe = endpoint_error(flow_preds[-1], flow_gt, valid_mask) 
 
         metrics = {
-            'flow_loss': flow_loss.item(),
+            'flow_loss': total_flow_loss.item(),
             'epe': epe.mean().item(),
             '1px': (epe < 1).float().mean().item(),
             '3px': (epe < 3).float().mean().item(),
             '5px': (epe < 5).float().mean().item(),
         }
 
-        return flow_loss, metrics
+        # DEBUG MODE
+        # Save additional metrics
+        if self.debug:
+            for i in range(num_predictions - 1):
+                metrics[f'flow_loss_iter_{i}'] = flow_loss_list[i]
+                metrics[f'epe_iter_{i}'] = epe_list[i]
+
+        return total_flow_loss, metrics
 
 
 class RaftSemanticLoss(nn.Module):
@@ -168,7 +201,8 @@ class RaftSemanticLoss(nn.Module):
         non_occlusion_mask = ((semseg_gt_1 - semseg_gt_2).abs() < 1e-5).float()
         non_occlusion_mask = non_occlusion_mask[:, 1:, 1:]
 
-        return (non_occlusion_mask * flow_valid_mask * semantic_loss).mean()
+        loss_mask = non_occlusion_mask * flow_valid_mask
+        return torch.sum(loss_mask * semantic_loss) / torch.sum(loss_mask)
 
     def forward(self, flow_preds, flow_gt, valid_mask, semseg_gt_1, semseg_gt_2):
         """ Compute loss.
@@ -203,24 +237,21 @@ class RaftSemanticLoss(nn.Module):
         # Compute L1 flow loss and semantic smoothness loss for each prediction in the sequence
         for i in range(num_predictions):
             weight = self.gamma ** (num_predictions - i - 1)
-            flow_loss = (flow_preds[i] - flow_gt).abs()
-            flow_loss = (valid_mask * flow_loss).mean()
+            flow_loss = l1_loss_fixed(flow_preds[i], flow_gt, valid_mask)
             total_flow_loss += weight * flow_loss
             semantic_loss = self.get_semantic_smoothness_loss(flow_preds[i], semseg_gt_1, semseg_gt_2, valid_mask)
             total_semantic_loss += weight * semantic_loss
 
+            # DEBUG MODE
             if self.debug:
                 flow_loss_list.append(flow_loss.item())
                 semantic_loss_list.append(semantic_loss.item())
-
-                epe = torch.sum((flow_preds[-1] - flow_gt) ** 2, dim=1).sqrt()
-                epe = epe.view(-1)[valid_mask.view(-1)]
+                epe_list.append(endpoint_error(flow_preds[i], flow_gt, valid_mask).mean().item())
 
         total_loss = total_flow_loss + self.w_smooth * total_semantic_loss
 
         # Compute EPE and other metrics for most recent prediction
-        epe = torch.sum((flow_preds[-1] - flow_gt) ** 2, dim=1).sqrt()
-        epe = epe.view(-1)[valid_mask.view(-1)]
+        epe = endpoint_error(flow_preds[-1], flow_gt, valid_mask)
 
         metrics = {
             'flow_loss': total_flow_loss.item(),
@@ -231,6 +262,15 @@ class RaftSemanticLoss(nn.Module):
             '3px': (epe < 3).float().mean().item(),
             '5px': (epe < 5).float().mean().item(),
         }
+
+        # DEBUG MODE
+        # Save additional metrics
+        if self.debug:
+            for i in range(num_predictions - 1):
+                metrics[f'flow_loss_iter_{i}'] = flow_loss_list[i]
+                metrics[f'semantic_loss_iter_{i}'] = semantic_loss_list[i]
+                metrics[f'epe_iter_{i}'] = epe_list[i]
+
         return total_loss, metrics
         
 
