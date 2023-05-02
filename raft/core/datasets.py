@@ -292,11 +292,13 @@ class VIPER(FlowDataset):
                         self.image_list += [[image_paths[j], image_paths[j + 1]]]
                         if self.use_semseg:
                             self.semseg_list += [[semseg_paths[j], semseg_paths[j + 1]]]
-                        print(f'Flow path: {flow_paths[i]}')
+                        
+                        print(f'\nFlow path: {flow_paths[i]}')
                         print(f'Image 1 path: {image_paths[j]}')
                         print(f'Image 2 path: {image_paths[j+1]}')
-                        print(f'Semseg 1 path: {semseg_paths[j]}')
-                        print(f'Semseg 2 path: {semseg_paths[j+1]}')
+                        if self.use_semseg:
+                            print(f'Semseg 1 path: {semseg_paths[j]}')
+                            print(f'Semseg 2 path: {semseg_paths[j+1]}')
                         break
 
             seq_idx += 1
