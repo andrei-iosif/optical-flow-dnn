@@ -10,11 +10,10 @@
             "request": "launch",
             "program": "${workspaceFolder}/raft/train.py",
             "args": [
-                "--name", "overfit_raft_viper_100_sample_seed_0_all_iters_semantic_loss",
+                "--name", "overfit_raft_viper_100_sample_seed_0_all_iters_semantic_loss_without_semseg",
                 "--num_overfit_samples", "100",
                 "--stage", "viper",
                 "--validation", "kitti",
-                "--checkpoint_out", ".",
                 "--restore_ckpt", "../models/raft_original_models/raft-things.pth",
                 "--gpus", "0",
                 "--num_steps", "2000",

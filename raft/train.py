@@ -137,8 +137,10 @@ def train(args):
 
             # Validation
             if total_steps % logger.val_freq == logger.val_freq - 1:
-                PATH = os.path.join(args.checkpoint_out, f"{total_steps + 1}_raft-{args.stage}.pth")
-                torch.save(model.state_dict(), PATH)
+                if args.checkpoint_out is not None:
+                    PATH = os.path.join(args.checkpoint_out, f"{total_steps + 1}_raft-{args.stage}.pth")
+                    torch.save(model.state_dict(), PATH)
+                    print(f"Saved model: {PATH}")
 
                 results = {}
                 for val_dataset in args.validation:
@@ -167,10 +169,11 @@ def train(args):
                 break
 
     logger.close()
-    PATH = os.path.join(args.checkpoint_out, f"raft-{args.stage}.pth")
-    torch.save(model.state_dict(), PATH)
 
-    return PATH
+    if args.checkpoint_out is not None:
+        PATH = os.path.join(args.checkpoint_out, f"raft-{args.stage}.pth")
+        torch.save(model.state_dict(), PATH)
+        print(f"Saved model: {PATH}")
 
 
 if __name__ == '__main__':
@@ -178,7 +181,7 @@ if __name__ == '__main__':
     parser.add_argument('--name', default='raft', help="name your experiment")
     parser.add_argument('--stage', help="determines which dataset to use for training")
     parser.add_argument('--restore_ckpt', help="restore checkpoint")
-    parser.add_argument('--checkpoint_out', default="./checkpoints", help="Output folder for checkpoints")
+    parser.add_argument('--checkpoint_out', help="Output folder for checkpoints")
     parser.add_argument('--small', action='store_true', help='use small model')
     parser.add_argument('--validation', type=str, nargs='+')
     parser.add_argument('--val_freq', type=int, default=5000, help="Validation frequency (iterations)")
@@ -213,7 +216,7 @@ if __name__ == '__main__':
     # Initial seed for RNGs; influences the initial model weights
     set_random_seed(args.seed)
 
-    if not os.path.isdir(args.checkpoint_out):
+    if args.checkpoint_out is not None and not os.path.isdir(args.checkpoint_out):
         os.makedirs(args.checkpoint_out, exist_ok=True)
 
     if "uncertainty" not in args:

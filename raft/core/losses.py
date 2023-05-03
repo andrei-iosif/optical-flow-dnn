@@ -16,9 +16,38 @@ def l1_loss(flow_pred, flow_gt, valid_mask=None):
     else:
         return loss_img.mean()
 
-def l1_loss_fixed(flow_pred, flow_gt, valid_mask=None):
+# DO NOT USE THIS
+# Keep it as a reminder for not unit testing your code :)
+def l1_loss_fixed_OLD(flow_pred, flow_gt, valid_mask=None):
+    # !!! Result here has shape [B, H, W], not [B, 1, H, W]
     loss_img = torch.sum((flow_pred - flow_gt).abs(), dim=1)
     if valid_mask is not None:
+        return torch.sum(loss_img * valid_mask) / torch.sum(valid_mask)
+    else:
+        return loss_img.mean()
+    
+
+def l1_loss_fixed(flow_pred, flow_gt, valid_mask=None):
+    """ Compute L1 loss for optical flow.
+
+    Args:
+        flow_pred (torch.Tensor): Predicted optical flow, shape [B, 2, H, W]
+        flow_gt (torch.Tensor): Ground truth optical flow, shape [B, 2, H, W]
+        valid_mask (torch.Tensor, optional): Flow validity mask, shape [B, H, W]. Defaults to None.
+
+    Returns:
+        Loss value (scalar type)
+    """
+    assert len(flow_pred.shape) == 4 and flow_pred.shape[1] == 2, "Predicted flow should have shape [B, 2, H, W]"
+    assert len(flow_gt.shape) == 4 and flow_gt.shape[1] == 2, "GT flow should have shape [B, 2, H, W]"
+
+    # Compute L1 distance for every pixel => shape [B, H, W]
+    loss_img = torch.sum((flow_pred - flow_gt).abs(), dim=1)
+
+    # Compute mean over whole image
+    # Apply validity mask if necessary
+    if valid_mask is not None:
+        assert len(valid_mask.shape) == 3 and valid_mask.shape[0] == flow_pred.shape[0], "Valid mask should have shape [B, H, W]"
         return torch.sum(loss_img * valid_mask) / torch.sum(valid_mask)
     else:
         return loss_img.mean()
@@ -167,11 +196,15 @@ class RaftSemanticLoss(nn.Module):
             flow_pred (torch.Tensor): Flow prediction, shape [B, 2, H, W]
             semseg_gt_1 (torch.Tensor): Semantic GT for first image, shape [B, H, W]
             semseg_gt_2 (torch.Tensor): Semantic GT for second image, shape [B, H, W]
-            flow_valid_mask (torch.Tensor): Flow validity mask, shape [B, 1, H, W]
+            flow_valid_mask (torch.Tensor): Flow validity mask, shape [B, H, W]
 
         Return:
             semantic smoothness loss (float)
         """
+        assert len(flow_pred.shape) == 4 and flow_pred.shape[1] == 2, "Predicted flow should have shape [B, 2, H, W]"
+        assert len(flow_valid_mask.shape) == 3 and flow_valid_mask.shape[0] == flow_pred.shape[0], "GT flow should have shape [B, H, W]"
+        assert len(semseg_gt_1.shape) == 3 and semseg_gt_1.shape[0] == flow_pred.shape[0], "Semseg GT should have shape [B, H, W]"
+        assert len(semseg_gt_2.shape) == 3 and semseg_gt_2.shape[0] == flow_pred.shape[0], "Semseg GT should have shape [B, H, W]"
 
         # Flow gradients
         u_flow_grad_x, u_flow_grad_y = self.image_grads(flow_pred[:, 0, :, :])
@@ -193,20 +226,14 @@ class RaftSemanticLoss(nn.Module):
         # loss_y [B, H-1, W] -> [B, H-1, W-1]
         semantic_loss = loss_x[:, 1:, :] + loss_y[:, :, 1:]
 
-        # Convert from [B, H, W] to [B, 1, H, W]
-        semantic_loss = semantic_loss[:, None]
-
         # Crop flow valid mask [B, H, W] -> [B, H-1, W-1]
-        flow_valid_mask = flow_valid_mask[:, :, 1:, 1:]
+        flow_valid_mask = flow_valid_mask[:, 1:, 1:]
 
         # Compute non-occlusion mask from semseg GT for both frames
         non_occlusion_mask = ((semseg_gt_1 - semseg_gt_2).abs() < 1e-5)
 
         # Crop non-occlusion mask [B, H, W] -> [B, H-1, W-1]
         non_occlusion_mask = non_occlusion_mask[:, 1:, 1:]
-
-        # Convert from [B, H, W] to [B, 1, H, W]
-        non_occlusion_mask = non_occlusion_mask[:, None]
 
         loss_mask = non_occlusion_mask * flow_valid_mask
         return torch.sum(loss_mask * semantic_loss) / torch.sum(loss_mask)
@@ -231,9 +258,6 @@ class RaftSemanticLoss(nn.Module):
         # Exclude invalid pixels and extremely large displacements
         mag = torch.sum(flow_gt ** 2, dim=1).sqrt()
         valid_mask = (valid_mask >= 0.5) & (mag < self.max_flow)
-
-        # Convert from [B, H, W] to [B, 1, H, W]
-        valid_mask = valid_mask[:, None]
 
         # DEBUG MODE
         if self.debug:
