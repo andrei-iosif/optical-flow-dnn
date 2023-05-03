@@ -57,7 +57,7 @@ def fetch_loss_func(args):
     """ Create loss function. """
     if args.semantic_loss:
         print("Training using semantic RAFT loss")
-        return losses.RaftSemanticLoss(gamma=args.gamma, debug=args.debug_iter)
+        return losses.RaftSemanticLoss(gamma=args.gamma, w_smooth=args.semantic_loss_weight, debug=args.debug_iter)
     elif args.uncertainty:
         print("Training using RAFT uncertainty loss")
         return losses.RaftUncertaintyLoss(gamma=args.gamma)
@@ -205,6 +205,7 @@ if __name__ == '__main__':
     parser.add_argument('--validation_set_size', type=int, default=-1, 
         help="Number of samples used to compute validation metrics. By default, the entire validation dataset is used.")
     parser.add_argument('--semantic_loss', type=bool, default=False, help="Use semantic correction for training.")
+    parser.add_argument('--semantic_loss_weight', type=float, default=0.5, help="Weight for semantic loss term")
     parser.add_argument('--uncertainty', action='store_true', help='Enable flow uncertainty estimation')
     parser.add_argument('--debug', action='store_true', help="In debug mode, additional plots are generated and uploaded to ClearML")
     parser.add_argument('--debug_iter', action='store_true', help="Save metrics for all refinement iterations")
