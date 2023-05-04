@@ -29,28 +29,41 @@
 
 
 ## DEBUG
-python -u train.py \
-    --name overfit_raft_viper_100_sample_seed_0_all_iters_semantic_loss_FIXED \
-    --num_overfit_samples 100 \
-    --val_freq 1000 \
-    --restore_ckpt ../models/raft_original_models/raft-things.pth \
-    --stage viper --validation kitti --gpus 0 \
-    --num_steps 5000 --batch_size 6 --lr 1e-4 \
-    --image_size 288 960 \
-    --wdecay 0.0001 \
-    --seed 0 \
-    --debug_iter --semantic_loss true
+# python -u train.py \
+#     --name overfit_raft_viper_100_sample_seed_0_all_iters_semantic_loss_FIXED \
+#     --num_overfit_samples 100 \
+#     --val_freq 1000 \
+#     --restore_ckpt ../models/raft_original_models/raft-things.pth \
+#     --stage viper --validation kitti --gpus 0 \
+#     --num_steps 5000 --batch_size 6 --lr 1e-4 \
+#     --image_size 288 960 \
+#     --wdecay 0.0001 \
+#     --seed 0 \
+#     --debug_iter --semantic_loss true
 
-python -u train.py \
-    --name overfit_raft_viper_100_sample_seed_0_all_iters_semantic_loss_weight_5 \
-    --num_overfit_samples 100 \
-    --val_freq 1000 \
-    --restore_ckpt ../models/raft_original_models/raft-things.pth \
-    --stage viper --validation kitti --gpus 0 \
-    --num_steps 5000 --batch_size 6 --lr 1e-4 \
-    --image_size 288 960 \
-    --wdecay 0.0001 \
-    --seed 0 \
-    --debug_iter \
-    --semantic_loss true --semantic_loss_weight 5.0
+# python -u train.py \
+#     --name overfit_raft_viper_100_sample_seed_0_all_iters_semantic_loss_weight_5 \
+#     --num_overfit_samples 100 \
+#     --val_freq 1000 \
+#     --restore_ckpt ../models/raft_original_models/raft-things.pth \
+#     --stage viper --validation kitti --gpus 0 \
+#     --num_steps 5000 --batch_size 6 --lr 1e-4 \
+#     --image_size 288 960 \
+#     --wdecay 0.0001 \
+#     --seed 0 \
+#     --debug_iter \
+#     --semantic_loss true --semantic_loss_weight 5.0
 ## DEBUG
+
+# RAFT Semantic
+python -u train.py \
+    --name train_raft_viper_semantic_loss_seed_0_mixed \
+    --restore_ckpt=../models/raft_original_models/raft-things.pth \
+    --checkpoint_out=../checkpoints/raft_semantic/train_raft_viper_semantic_loss_seed_0_mixed \
+    --stage viper --validation viper --validation_set_size 200 --gpus 0 \
+    --num_steps 100000 --batch_size 6 --lr 0.0001 \
+    --image_size 288 960 --wdecay 0.0001 \
+    --seed 0 \
+    --mixed_precision \
+    --semantic_loss true \
+    --debug_iter
