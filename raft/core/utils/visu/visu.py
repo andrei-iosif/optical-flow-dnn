@@ -28,25 +28,31 @@ def inputs_visu(img_1, gt_flow, valid_flow_mask=None, semseg_gt=None, sample_idx
     height, width = img_1.shape[0], img_1.shape[1]
     aspect_ratio = width / height
 
-    fig, axes = plt.subplots(2, 2)
+    should_plot_valid_mask = valid_flow_mask is not None and np.sum(valid_flow_mask) != height * width
+    should_plot_semseg = semseg_gt is not None
+    use_small_plot = not should_plot_valid_mask and not should_plot_semseg
 
-    axes[0, 0].imshow(img_1)
-    axes[0, 0].set_title(f'Image 1', fontsize=25)
+    fig, axes = plt.subplots(1, 2) if use_small_plot else plt.subplots(2, 2)
+    img_axis = axes[0] if use_small_plot else axes[0, 0]
+    flow_gt_axis = axes[1] if use_small_plot else axes[0, 1]
 
-    axes[0, 1].imshow(flow_img)
-    axes[0, 1].set_title(f'Flow GT', fontsize=25)
+    img_axis.imshow(img_1)
+    img_axis.set_title(f'Image 1', fontsize=25)
 
-    if valid_flow_mask is not None:
+    flow_gt_axis.imshow(flow_img)
+    flow_gt_axis.set_title(f'Flow GT', fontsize=25)
+
+    if should_plot_valid_mask:
         axes[1, 0].imshow(valid_flow_mask, cmap='gray')
         axes[1, 0].set_title('Valid flow mask', fontsize=25)
-    else:
+    elif not use_small_plot:
         axes[1, 0].axis('off')
 
-    if semseg_gt is not None:
+    if should_plot_semseg:
         semseg_gt = semseg_gt.transpose(1, 2, 0).astype(np.uint8)
         axes[1, 1].imshow(semseg_gt)
         axes[1, 1].set_title('Semseg GT', fontsize=25)
-    else:
+    elif not use_small_plot:
         axes[1, 1].axis('off')
 
     if output_path is not None:

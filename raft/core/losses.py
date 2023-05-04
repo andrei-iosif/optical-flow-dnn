@@ -9,6 +9,66 @@ import torch.nn as nn
 MAX_FLOW = 400.0
 
 
+def l1_loss(flow_pred, flow_gt, valid_mask=None):
+    loss_img = torch.sum((flow_pred - flow_gt).abs(), dim=1)
+    if valid_mask is not None:
+        return (valid_mask * loss_img).mean()
+    else:
+        return loss_img.mean()
+
+# DO NOT USE THIS
+# Keep it as a reminder for not unit testing your code :)
+def l1_loss_fixed_OLD(flow_pred, flow_gt, valid_mask=None):
+    # !!! Result here has shape [B, H, W], not [B, 1, H, W]
+    loss_img = torch.sum((flow_pred - flow_gt).abs(), dim=1)
+    if valid_mask is not None:
+        return torch.sum(loss_img * valid_mask) / torch.sum(valid_mask)
+    else:
+        return loss_img.mean()
+    
+
+def l1_loss_fixed(flow_pred, flow_gt, valid_mask=None):
+    """ Compute L1 loss for optical flow.
+
+    Args:
+        flow_pred (torch.Tensor): Predicted optical flow, shape [B, 2, H, W]
+        flow_gt (torch.Tensor): Ground truth optical flow, shape [B, 2, H, W]
+        valid_mask (torch.Tensor, optional): Flow validity mask, shape [B, H, W]. Defaults to None.
+
+    Returns:
+        Loss value (scalar type)
+    """
+    assert len(flow_pred.shape) == 4 and flow_pred.shape[1] == 2, "Predicted flow should have shape [B, 2, H, W]"
+    assert len(flow_gt.shape) == 4 and flow_gt.shape[1] == 2, "GT flow should have shape [B, 2, H, W]"
+
+    # Compute L1 distance for every pixel => shape [B, H, W]
+    loss_img = torch.sum((flow_pred - flow_gt).abs(), dim=1)
+
+    # Compute mean over whole image
+    # Apply validity mask if necessary
+    if valid_mask is not None:
+        assert len(valid_mask.shape) == 3 and valid_mask.shape[0] == flow_pred.shape[0], "Valid mask should have shape [B, H, W]"
+        return torch.sum(loss_img * valid_mask) / torch.sum(valid_mask)
+    else:
+        return loss_img.mean()
+
+
+def endpoint_error(flow_pred, flow_gt, valid_mask=None):
+    """ Compute EPE metric between predicted flow and GT flow.
+
+    Args:
+        flow_pred (torch.Tensor): Predicted flow, shape [B, 2, H, W]
+        flow_gt (torch.Tensor): GT flow, shape [B, 2, H, W]
+        valid_mask (torch.Tensor, optional): Flow validity mask, shape [B, 1, H, W]. Defaults to None.
+
+    Returns:
+        EPE for each pixel, flattened to shape [B*H*W]
+    """
+    epe = torch.sum((flow_pred - flow_gt) ** 2, dim=1).sqrt()
+    epe = epe.view(-1)[valid_mask.view(-1)]
+    return epe
+
+
 class RaftLoss(nn.Module):
     """ Original loss, as defined in the paper. 
     
@@ -21,16 +81,18 @@ class RaftLoss(nn.Module):
         - <K>px: percentage of pixels for which EPE is smaller than K pixel(s)
     """
 
-    def __init__(self, gamma=0.8, max_flow=MAX_FLOW):
+    def __init__(self, gamma=0.8, max_flow=MAX_FLOW, debug=False):
         """ Initialize loss.
 
         Args:
             gamma (float, optional): Weighting factor for sequence loss. Defaults to 0.8.
-            max_flow (float, optional): Maximum flow magnitude. Defaults to MAX_FLOW.        
+            max_flow (float, optional): Maximum flow magnitude. Defaults to MAX_FLOW.
+            debug (bool, optional): If True, save metrics for intermediate flow refinement iterations. Defaults to False      
         """
         super(RaftLoss, self).__init__()
         self.gamma = gamma
         self.max_flow = max_flow
+        self.debug = debug
 
 
     def forward(self, flow_preds, flow_gt, valid_mask):
@@ -40,54 +102,74 @@ class RaftLoss(nn.Module):
             flow_preds (list(torch.Tensor)): List of intermediate flow predictions.
             flow_gt (torch.Tensor): Flow ground truth.
             valid_mask (torch.Tensor): Flow validity mask; used to compute loss only for valid GT positions.
+            debug_iter (bool, optional): If True, save metrics for intermediate flow refinement iterations. Defaults to False
             
         Returns:
             (flow loss, additional metrics dict)
         """
         num_predictions = len(flow_preds)
-        flow_loss = 0.0
+        total_flow_loss = 0.0
 
         # Exclude invalid pixels and extremely large displacements
         mag = torch.sum(flow_gt ** 2, dim=1).sqrt()
         valid_mask = (valid_mask >= 0.5) & (mag < self.max_flow)
 
+        # DEBUG MODE
+        if self.debug:
+            flow_loss_list = []
+            epe_list = []
+
         # Compute L1 loss for each prediction in the sequence
         for i in range(num_predictions):
-            i_weight = self.gamma ** (num_predictions - i - 1)
-            i_loss = (flow_preds[i] - flow_gt).abs()
-            flow_loss += i_weight * (valid_mask[:, None] * i_loss).mean()
+            weight = self.gamma ** (num_predictions - i - 1)
+            flow_loss = l1_loss_fixed(flow_preds[i], flow_gt, valid_mask)
+            total_flow_loss += weight * flow_loss
+
+            # DEBUG MODE
+            if self.debug:
+                with torch.no_grad():
+                    flow_loss_list.append(flow_loss.item())
+                    epe_list.append(endpoint_error(flow_preds[i], flow_gt, valid_mask).mean().item())
 
         # Compute EPE and other metrics for most recent prediction
-        epe = torch.sum((flow_preds[-1] - flow_gt) ** 2, dim=1).sqrt()
-        epe = epe.view(-1)[valid_mask.view(-1)]
+        epe = endpoint_error(flow_preds[-1], flow_gt, valid_mask) 
 
         metrics = {
-            'flow_loss': flow_loss.item(),
+            'flow_loss': total_flow_loss.item(),
             'epe': epe.mean().item(),
             '1px': (epe < 1).float().mean().item(),
             '3px': (epe < 3).float().mean().item(),
             '5px': (epe < 5).float().mean().item(),
         }
 
-        return flow_loss, metrics
+        # DEBUG MODE
+        # Save additional metrics
+        if self.debug:
+            for i in range(num_predictions - 1):
+                metrics[f'flow_loss_iter_{i:03d}'] = flow_loss_list[i]
+                metrics[f'epe_iter_{i:03d}'] = epe_list[i]
+
+        return total_flow_loss, metrics
 
 
 class RaftSemanticLoss(nn.Module):
     """ Similar to RaftLoss, with an additional term that uses the semantic labels. 
     """
 
-    def __init__(self, gamma=0.8, max_flow=MAX_FLOW, w_smooth=0.5):
+    def __init__(self, gamma=0.8, max_flow=MAX_FLOW, w_smooth=0.5, debug=False):
         """ Initialize loss.
 
         Args:
             gamma (float, optional): Weighting factor for sequence loss. Defaults to 0.8.
             max_flow (float, optional): Maximum flow magnitude. Defaults to MAX_FLOW.        
-            w_semantic (float, optiona): Weighting factor for semantic smoothness loss. Defaults to 0.5
+            w_semantic (float, optional): Weighting factor for semantic smoothness loss. Defaults to 0.5
+            debug (bool, optional): If True, save metrics for intermediate flow refinement iterations. Defaults to False
         """
         super(RaftSemanticLoss, self).__init__()
         self.gamma = gamma
         self.max_flow = max_flow
         self.w_smooth = w_smooth
+        self.debug = debug
 
     @staticmethod
     def image_grads(img):
@@ -114,11 +196,15 @@ class RaftSemanticLoss(nn.Module):
             flow_pred (torch.Tensor): Flow prediction, shape [B, 2, H, W]
             semseg_gt_1 (torch.Tensor): Semantic GT for first image, shape [B, H, W]
             semseg_gt_2 (torch.Tensor): Semantic GT for second image, shape [B, H, W]
-            flow_valid_mask (torch.Tensor): Flow validity mask, shape [B, 1, H, W]
+            flow_valid_mask (torch.Tensor): Flow validity mask, shape [B, H, W]
 
         Return:
             semantic smoothness loss (float)
         """
+        assert len(flow_pred.shape) == 4 and flow_pred.shape[1] == 2, "Predicted flow should have shape [B, 2, H, W]"
+        assert len(flow_valid_mask.shape) == 3 and flow_valid_mask.shape[0] == flow_pred.shape[0], "GT flow should have shape [B, H, W]"
+        assert len(semseg_gt_1.shape) == 3 and semseg_gt_1.shape[0] == flow_pred.shape[0], "Semseg GT should have shape [B, H, W]"
+        assert len(semseg_gt_2.shape) == 3 and semseg_gt_2.shape[0] == flow_pred.shape[0], "Semseg GT should have shape [B, H, W]"
 
         # Flow gradients
         u_flow_grad_x, u_flow_grad_y = self.image_grads(flow_pred[:, 0, :, :])
@@ -140,17 +226,17 @@ class RaftSemanticLoss(nn.Module):
         # loss_y [B, H-1, W] -> [B, H-1, W-1]
         semantic_loss = loss_x[:, 1:, :] + loss_y[:, :, 1:]
 
-        # Convert from [B, H, W] to [B, 1, H, W]
-        semantic_loss = semantic_loss[:, None]
-
         # Crop flow valid mask [B, H, W] -> [B, H-1, W-1]
-        flow_valid_mask = flow_valid_mask[:, :, 1:, 1:]
+        flow_valid_mask = flow_valid_mask[:, 1:, 1:]
 
         # Compute non-occlusion mask from semseg GT for both frames
-        non_occlusion_mask = ((semseg_gt_1 - semseg_gt_2).abs() < 1e-5).float()
+        non_occlusion_mask = ((semseg_gt_1 - semseg_gt_2).abs() < 1e-5)
+
+        # Crop non-occlusion mask [B, H, W] -> [B, H-1, W-1]
         non_occlusion_mask = non_occlusion_mask[:, 1:, 1:]
 
-        return (non_occlusion_mask * flow_valid_mask * semantic_loss).mean()
+        loss_mask = non_occlusion_mask * flow_valid_mask
+        return torch.sum(loss_mask * semantic_loss) / torch.sum(loss_mask)
 
     def forward(self, flow_preds, flow_gt, valid_mask, semseg_gt_1, semseg_gt_2):
         """ Compute loss.
@@ -173,22 +259,31 @@ class RaftSemanticLoss(nn.Module):
         mag = torch.sum(flow_gt ** 2, dim=1).sqrt()
         valid_mask = (valid_mask >= 0.5) & (mag < self.max_flow)
 
-        # Convert from [B, H, W] to [B, 1, H, W]
-        valid_mask = valid_mask[:, None]
+        # DEBUG MODE
+        if self.debug:
+            flow_loss_list = []
+            semantic_loss_list = []
+            epe_list = []
 
         # Compute L1 flow loss and semantic smoothness loss for each prediction in the sequence
         for i in range(num_predictions):
             weight = self.gamma ** (num_predictions - i - 1)
-            flow_loss = (flow_preds[i] - flow_gt).abs()
-            total_flow_loss += weight * (valid_mask * flow_loss).mean()
+            flow_loss = l1_loss_fixed(flow_preds[i], flow_gt, valid_mask)
+            total_flow_loss += weight * flow_loss
             semantic_loss = self.get_semantic_smoothness_loss(flow_preds[i], semseg_gt_1, semseg_gt_2, valid_mask)
             total_semantic_loss += weight * semantic_loss
+
+            # DEBUG MODE
+            if self.debug:
+                with torch.no_grad():
+                    flow_loss_list.append(flow_loss.item())
+                    semantic_loss_list.append(semantic_loss.item())
+                    epe_list.append(endpoint_error(flow_preds[i], flow_gt, valid_mask).mean().item())
 
         total_loss = total_flow_loss + self.w_smooth * total_semantic_loss
 
         # Compute EPE and other metrics for most recent prediction
-        epe = torch.sum((flow_preds[-1] - flow_gt) ** 2, dim=1).sqrt()
-        epe = epe.view(-1)[valid_mask.view(-1)]
+        epe = endpoint_error(flow_preds[-1], flow_gt, valid_mask)
 
         metrics = {
             'flow_loss': total_flow_loss.item(),
@@ -199,6 +294,15 @@ class RaftSemanticLoss(nn.Module):
             '3px': (epe < 3).float().mean().item(),
             '5px': (epe < 5).float().mean().item(),
         }
+
+        # DEBUG MODE
+        # Save additional metrics
+        if self.debug:
+            for i in range(num_predictions - 1):
+                metrics[f'flow_loss_iter_{i:03d}'] = flow_loss_list[i]
+                metrics[f'semantic_loss_iter_{i:03d}'] = semantic_loss_list[i]
+                metrics[f'epe_iter_{i:03d}'] = epe_list[i]
+
         return total_loss, metrics
         
 

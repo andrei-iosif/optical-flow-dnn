@@ -13,6 +13,7 @@ import core.losses as losses
 from core.raft import RAFT
 from core.utils.logger import Logger
 from core.utils.random import set_random_seed
+from core.utils.training_utils import EarlyStopper
 
 import evaluate
 
@@ -56,13 +57,13 @@ def fetch_loss_func(args):
     """ Create loss function. """
     if args.semantic_loss:
         print("Training using semantic RAFT loss")
-        return losses.RaftSemanticLoss(gamma=args.gamma)
+        return losses.RaftSemanticLoss(gamma=args.gamma, w_smooth=args.semantic_loss_weight, debug=args.debug_iter)
     elif args.uncertainty:
         print("Training using RAFT uncertainty loss")
         return losses.RaftUncertaintyLoss(gamma=args.gamma)
     else:
         print("Training using base RAFT loss")
-        return losses.RaftLoss(gamma=args.gamma)
+        return losses.RaftLoss(gamma=args.gamma, debug=args.debug_iter)
 
 
 def train(args):
@@ -136,8 +137,10 @@ def train(args):
 
             # Validation
             if total_steps % logger.val_freq == logger.val_freq - 1:
-                PATH = os.path.join(args.checkpoint_out, f"{total_steps + 1}_raft-{args.stage}.pth")
-                torch.save(model.state_dict(), PATH)
+                if args.checkpoint_out is not None:
+                    PATH = os.path.join(args.checkpoint_out, f"{total_steps + 1}_raft-{args.stage}.pth")
+                    torch.save(model.state_dict(), PATH)
+                    print(f"Saved model: {PATH}")
 
                 results = {}
                 for val_dataset in args.validation:
@@ -166,10 +169,11 @@ def train(args):
                 break
 
     logger.close()
-    PATH = os.path.join(args.checkpoint_out, f"raft-{args.stage}.pth")
-    torch.save(model.state_dict(), PATH)
 
-    return PATH
+    if args.checkpoint_out is not None:
+        PATH = os.path.join(args.checkpoint_out, f"raft-{args.stage}.pth")
+        torch.save(model.state_dict(), PATH)
+        print(f"Saved model: {PATH}")
 
 
 if __name__ == '__main__':
@@ -177,7 +181,7 @@ if __name__ == '__main__':
     parser.add_argument('--name', default='raft', help="name your experiment")
     parser.add_argument('--stage', help="determines which dataset to use for training")
     parser.add_argument('--restore_ckpt', help="restore checkpoint")
-    parser.add_argument('--checkpoint_out', default="./checkpoints", help="Output folder for checkpoints")
+    parser.add_argument('--checkpoint_out', help="Output folder for checkpoints")
     parser.add_argument('--small', action='store_true', help='use small model')
     parser.add_argument('--validation', type=str, nargs='+')
     parser.add_argument('--val_freq', type=int, default=5000, help="Validation frequency (iterations)")
@@ -201,22 +205,26 @@ if __name__ == '__main__':
     parser.add_argument('--validation_set_size', type=int, default=-1, 
         help="Number of samples used to compute validation metrics. By default, the entire validation dataset is used.")
     parser.add_argument('--semantic_loss', type=bool, default=False, help="Use semantic correction for training.")
+    parser.add_argument('--semantic_loss_weight', type=float, default=0.5, help="Weight for semantic loss term")
     parser.add_argument('--uncertainty', action='store_true', help='Enable flow uncertainty estimation')
     parser.add_argument('--debug', action='store_true', help="In debug mode, additional plots are generated and uploaded to ClearML")
+    parser.add_argument('--debug_iter', action='store_true', help="Save metrics for all refinement iterations")
     args = parser.parse_args()
 
     # Initialize ClearML task
-    task = Task.init(project_name='RAFT', task_name=args.name)
+    task = Task.init(project_name='RAFT Semantic', task_name=args.name)
 
     # Initial seed for RNGs; influences the initial model weights
     set_random_seed(args.seed)
 
-    if not os.path.isdir(args.checkpoint_out):
+    if args.checkpoint_out is not None and not os.path.isdir(args.checkpoint_out):
         os.makedirs(args.checkpoint_out, exist_ok=True)
 
     if "uncertainty" not in args:
         args.uncertainty = False
     if "debug" not in args:
         args.debug = False
+    if "debug_iter" not in args:
+        args.debug_iter = False
 
     train(args)
