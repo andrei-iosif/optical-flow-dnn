@@ -59,7 +59,7 @@ def endpoint_error(flow_pred, flow_gt, valid_mask=None):
     Args:
         flow_pred (torch.Tensor): Predicted flow, shape [B, 2, H, W]
         flow_gt (torch.Tensor): GT flow, shape [B, 2, H, W]
-        valid_mask (torch.Tensor, optional): Flow validity mask, shape [B, 1, H, W]. Defaults to None.
+        valid_mask (torch.Tensor, optional): Flow validity mask, shape [B, H, W]. Defaults to None.
 
     Returns:
         EPE for each pixel, flattened to shape [B*H*W]
@@ -102,7 +102,6 @@ class RaftLoss(nn.Module):
             flow_preds (list(torch.Tensor)): List of intermediate flow predictions.
             flow_gt (torch.Tensor): Flow ground truth.
             valid_mask (torch.Tensor): Flow validity mask; used to compute loss only for valid GT positions.
-            debug_iter (bool, optional): If True, save metrics for intermediate flow refinement iterations. Defaults to False
             
         Returns:
             (flow loss, additional metrics dict)
@@ -307,22 +306,32 @@ class RaftSemanticLoss(nn.Module):
         
 
 class RaftUncertaintyLoss(nn.Module):
-    def __init__(self, gamma=0.8, max_flow=MAX_FLOW, min_variance=1e-4):
+    def __init__(self, gamma=0.8, max_flow=MAX_FLOW, min_variance=1e-4, debug=False):
+        """_summary_
+
+        Args:
+            gamma (float, optional): Weighting factor for sequence loss. Defaults to 0.8.
+            max_flow (float, optional): Maximum flow magnitude. Defaults to MAX_FLOW.
+            min_variance (float, optional): Small value added to variance estimation, to avoid numerical issues. Defaults to 1e-4.
+            debug (bool, optional): If True, save metrics for intermediate flow refinement iterations. Defaults to False
+        """
         super(RaftUncertaintyLoss, self).__init__()
         self.gamma = gamma 
         self.max_flow = max_flow
         self.min_variance = min_variance
+        self.debug = debug
 
-    def negative_log_likelihood_loss(self, flow_pred, flow_gt, flow_valid_mask):
+    def nll_loss_v1(self, flow_pred, flow_gt, valid_mask):
         """ Compute negative log-likelihood loss for Gaussian predictions.
 
-        Loss is defined as loss = log(sigma) + ((gt - mean)^2 / sigma)^(1/2)
-        See https://arxiv.org/pdf/1805.11327.pdf
+        Loss is defined as loss = log(pred_sigma) + (|gt - pred_mean| / pred_sigma)
+        For numerical stability, we assume that variance prediction is in log space, so the loss becomes
+        loss = pred_log_sigma + |gt - pred_mean| * e^(-pred_log_sigma)
 
         Args:
             flow_pred (tuple(torch.Tensor)): Flow mean and variance, each with shape [B, 2, H, W]
             flow_gt (torch.Tensor): Flow ground truth, with shape [B, 2, H, W]
-            flow_valid_mask (torch.Tensor): Flow validity mask, shape [B, 1, H, W]
+            valid_mask (torch.Tensor): Flow validity mask, shape [B, H, W]
 
         Returns:
             Loss value (float)
@@ -332,25 +341,31 @@ class RaftUncertaintyLoss(nn.Module):
         # nll_loss = torch.abs(flow_gt - pred_mean) / pred_variance + torch.log(pred_variance)
 
         pred_mean, pred_log_variance = flow_pred
-        nll_loss = torch.abs(flow_gt - pred_mean) * torch.exp(-pred_log_variance) + pred_log_variance
+        nll_loss = torch.sum(torch.abs(flow_gt - pred_mean) * torch.exp(-pred_log_variance) + pred_log_variance, dim=1)
+        return torch.sum(nll_loss * valid_mask) / torch.sum(valid_mask)
 
-        return (flow_valid_mask * nll_loss).mean()
-
-    def nll_loss_v3(self, flow_pred, flow_gt, flow_valid_mask):
+    def nll_loss_v2(self, flow_pred, flow_gt, valid_mask):
+        # Implementation inspired from:
         # https://pytorch.org/docs/stable/generated/torch.nn.GaussianNLLLoss.html
 
         pred_mean, pred_variance = flow_pred
         pred_variance = torch.clamp(pred_variance, min=self.min_variance)
         nll_loss = 0.5 * (torch.abs(flow_gt - pred_mean) / pred_variance + torch.log(pred_variance))
         nll_loss += 0.5 * math.log(2 * math.pi)
-
-        return (flow_valid_mask * nll_loss).mean()
-
-    def endpoint_error(self, flow_pred, flow_gt):
-        flow_pred_mean, _ = flow_pred
-        return torch.sum((flow_pred_mean[-1] - flow_gt) ** 2, dim=1).sqrt()
+        nll_loss = torch.sum(nll_loss, dim=1)
+        return torch.sum(nll_loss * valid_mask) / torch.sum(valid_mask)
 
     def forward(self, flow_preds, flow_gt, flow_valid_mask):
+        """ Compute loss.
+
+        Args:
+            flow_preds (list(torch.Tensor)): List of intermediate flow predictions, shape [(B, 2, H, W), (B, )].
+            flow_gt (torch.Tensor): Flow ground truth, shape [B, 2, H, W].
+            valid_mask (torch.Tensor): Flow validity mask; used to compute loss only for valid GT positions, shape [B, H, W].
+            
+        Returns:
+            (flow loss, additional metrics dict)
+        """
         num_predictions = len(flow_preds)
         total_loss = 0.0
 
@@ -358,18 +373,25 @@ class RaftUncertaintyLoss(nn.Module):
         mag = torch.sum(flow_gt ** 2, dim=1).sqrt()
         valid_mask = (flow_valid_mask >= 0.5) & (mag < self.max_flow)
 
-        # Convert from [B, H, W] to [B, 1, H, W]
-        valid_mask = valid_mask[:, None]
+         # DEBUG MODE
+        if self.debug:
+            flow_loss_list = []
+            epe_list = []
 
         for i in range(num_predictions):
             loss_weight = self.gamma ** (num_predictions - i - 1)
-            loss = self.nll_loss_v3(flow_preds[i], flow_gt, valid_mask)
+            flow_loss = self.nll_loss_v1(flow_preds[i], flow_gt, valid_mask)
 
             # Final loss is weighted sum of losses for each flow refinement iteration
-            total_loss += loss_weight * loss
+            total_loss += loss_weight * flow_loss
 
-        epe = self.endpoint_error(flow_preds[-1], flow_gt)
-        epe = epe.view(-1)[valid_mask.view(-1)]
+            # DEBUG MODE
+            if self.debug:
+                with torch.no_grad():
+                    flow_loss_list.append(flow_loss.item())
+                    epe_list.append(endpoint_error(flow_preds[i][0], flow_gt, valid_mask).mean().item())
+
+        epe = endpoint_error(flow_preds[-1][0], flow_gt, valid_mask)
 
         metrics = {
             'flow_loss': total_loss.item(),
@@ -378,4 +400,12 @@ class RaftUncertaintyLoss(nn.Module):
             '3px': (epe < 3).float().mean().item(),
             '5px': (epe < 5).float().mean().item(),
         }
+
+        # DEBUG MODE
+        # Save additional metrics
+        if self.debug:
+            for i in range(num_predictions - 1):
+                metrics[f'flow_loss_iter_{i:03d}'] = flow_loss_list[i]
+                metrics[f'epe_iter_{i:03d}'] = epe_list[i]
+
         return total_loss, metrics

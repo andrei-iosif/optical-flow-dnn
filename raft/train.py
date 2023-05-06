@@ -60,7 +60,7 @@ def fetch_loss_func(args):
         return losses.RaftSemanticLoss(gamma=args.gamma, w_smooth=args.semantic_loss_weight, debug=args.debug_iter)
     elif args.uncertainty:
         print("Training using RAFT uncertainty loss")
-        return losses.RaftUncertaintyLoss(gamma=args.gamma)
+        return losses.RaftUncertaintyLoss(gamma=args.gamma, debug=args.debug_iter)
     else:
         print("Training using base RAFT loss")
         return losses.RaftLoss(gamma=args.gamma, debug=args.debug_iter)
@@ -212,7 +212,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Initialize ClearML task
-    task = Task.init(project_name='RAFT Semantic', task_name=args.name)
+    task = Task.init(project_name='RAFT Uncertainty Debug', task_name=args.name)
 
     # Initial seed for RNGs; influences the initial model weights
     set_random_seed(args.seed)
