@@ -336,11 +336,11 @@ class RaftUncertaintyLoss(nn.Module):
         Returns:
             Loss value (float)
         """
-        # pred_mean, pred_variance = flow_pred
-        # pred_variance = pred_variance + self.min_variance
-        # nll_loss = torch.abs(flow_gt - pred_mean) / pred_variance + torch.log(pred_variance)
-
         pred_mean, pred_log_variance = flow_pred
+
+        # Prevent too small variance values
+        pred_log_variance = torch.clamp(pred_log_variance, min=math.log(self.min_variance))
+
         nll_loss = torch.sum(torch.abs(flow_gt - pred_mean) * torch.exp(-pred_log_variance) + pred_log_variance, dim=1)
         return torch.sum(nll_loss * valid_mask) / torch.sum(valid_mask)
 
@@ -348,11 +348,13 @@ class RaftUncertaintyLoss(nn.Module):
         # Implementation inspired from:
         # https://pytorch.org/docs/stable/generated/torch.nn.GaussianNLLLoss.html
 
-        pred_mean, pred_variance = flow_pred
+        pred_mean, pred_log_variance = flow_pred
+        pred_variance = torch.exp(pred_log_variance)
+
+        # Prevent too small variance values
         pred_variance = torch.clamp(pred_variance, min=self.min_variance)
-        nll_loss = 0.5 * (torch.abs(flow_gt - pred_mean) / pred_variance + torch.log(pred_variance))
-        nll_loss += 0.5 * math.log(2 * math.pi)
-        nll_loss = torch.sum(nll_loss, dim=1)
+
+        nll_loss = torch.sum((torch.abs(flow_gt - pred_mean) / pred_variance + torch.log(pred_variance)), dim=1)
         return torch.sum(nll_loss * valid_mask) / torch.sum(valid_mask)
 
     def forward(self, flow_preds, flow_gt, flow_valid_mask):
@@ -381,6 +383,7 @@ class RaftUncertaintyLoss(nn.Module):
         for i in range(num_predictions):
             loss_weight = self.gamma ** (num_predictions - i - 1)
             flow_loss = self.nll_loss_v1(flow_preds[i], flow_gt, valid_mask)
+            # flow_loss = self.nll_loss_v2(flow_preds[i], flow_gt, valid_mask)
 
             # Final loss is weighted sum of losses for each flow refinement iteration
             total_loss += loss_weight * flow_loss
