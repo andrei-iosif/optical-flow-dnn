@@ -32,9 +32,12 @@ def run(args):
     model_1 = load_model(args.model_1, args)
     model_2 = load_model(args.model_2, args)
     model_3 = load_model(args.model_3, args)
-    model_4 = load_model(args.model_4, args)
-    models = [model_1, model_2, model_3, model_4]
-    model_names = ["things", "viper", "vkitti", "viper_vkitti"]
+    # model_4 = load_model(args.model_4, args)
+    # models = [model_1, model_2, model_3, model_4]
+    # model_names = ["things", "viper", "vkitti", "viper_vkitti"]
+
+    models = [model_1, model_2, model_3]
+    model_names = ["things", "viper", "viper semantic"]
 
     # Load dataset
     dataset = datasets.KITTI(split='training', root='/home/mnegru/repos/optical-flow-dnn/raft/datasets/KITTI')
@@ -43,7 +46,7 @@ def run(args):
     # Run inference and save visus
     with torch.no_grad():
         for sample_id in range(len(dataset)):
-            image1, image2, flow_gt, valid_gt = dataset[sample_id]
+            image1, image2, flow_gt, _ = dataset[sample_id]
             image1 = image1[None].cuda()
             image2 = image2[None].cuda()
 
@@ -64,7 +67,7 @@ if __name__ == '__main__':
     parser.add_argument('--model_1', help="First checkpoint path")
     parser.add_argument('--model_2', help="Second checkpoint path")
     parser.add_argument('--model_3', help="Third checkpoint path")
-    parser.add_argument('--model_4', help="Fourth checkpoint path")
+    # parser.add_argument('--model_4', help="Fourth checkpoint path")
     parser.add_argument('--small', action="store_true", default=False, help="use small version of RAFT")
     parser.add_argument('--mixed_precision', action='store_true', default=False, help='use mixed precision')
     parser.add_argument('--alternate_corr', action='store_true', default=False, help='use efficent correlation implementation')

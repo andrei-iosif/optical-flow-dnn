@@ -6,6 +6,13 @@ import numpy as np
 from core.utils.visu.flow_visu import flow_to_color
 
 
+def flow_confidence_visu(flow_var):
+    u_flow_var, v_flow_var = flow_var[0, :, :], flow_var[1, :, :]
+    u_flow_var = np.exp(u_flow_var)
+    v_flow_var = np.exp(v_flow_var)
+    var = (u_flow_var + v_flow_var) / 2
+    return np.clip(var, 0.0, 10.0)
+
 def inputs_visu(img_1, gt_flow, valid_flow_mask=None, semseg_gt=None, sample_idx=-1, output_path=None):
     """
     Create visualization of input images, ground truth optical flow, and optionally, valid mask and/or
@@ -66,7 +73,7 @@ def inputs_visu(img_1, gt_flow, valid_flow_mask=None, semseg_gt=None, sample_idx
         plt.show()
 
 
-def predictions_visu(img_1, gt_flow, pred_flow, sample_id, output_path, additional_info=""):
+def predictions_visu(img_1, gt_flow, pred_flow, sample_id, output_path, additional_info="", pred_flow_var=None):
     """
     Create visualization of input images, predicted optical flow and ground truth optical flow.
 
@@ -77,6 +84,7 @@ def predictions_visu(img_1, gt_flow, pred_flow, sample_id, output_path, addition
         sample_id (int): Frame number
         output_path (str): Path where the visu is saved
         additional_info (str, optional): Additional label to be added to output file names. Defaults to "".
+        pred_flow_var (np.ndarray): Predicted flow variance, shape [2, H, W]
     """
     gt_flow_img = flow_to_color(gt_flow, channels_last=False)
     pred_flow_img = flow_to_color(pred_flow, channels_last=False)
@@ -97,7 +105,12 @@ def predictions_visu(img_1, gt_flow, pred_flow, sample_id, output_path, addition
     axes[1, 0].imshow(pred_flow_img)
     axes[1, 0].set_title(f'Predicted Flow', fontsize=25)
 
-    axes[1, 1].axis('off')
+    if pred_flow_var is not None:
+        pred_flow_var_img = flow_confidence_visu(pred_flow_var)
+        axes[1, 1].imshow(pred_flow_var_img, cmap='jet')
+        axes[1, 1].set_title(f'Predicted Flow Confidence', fontsize=25)
+    else:
+        axes[1, 1].axis('off')
 
     if output_path is not None:
         os.makedirs(output_path, exist_ok=True)
@@ -150,10 +163,11 @@ def predictions_comparison_visu(img_1, gt_flow, flow_predictions, sample_id, out
     axes[2, 0].imshow(pred_flow_images[2])
     axes[2, 0].set_title(f'Predicted Flow {flow_predictions[2][0]}', fontsize=25)
 
-
-    axes[2, 1].imshow(pred_flow_images[3])
-    axes[2, 1].set_title(f'Predicted Flow {flow_predictions[3][0]}', fontsize=25)
-
+    if len(pred_flow_images) > 3:
+        axes[2, 1].imshow(pred_flow_images[3])
+        axes[2, 1].set_title(f'Predicted Flow {flow_predictions[3][0]}', fontsize=25)
+    else:
+        axes[2, 1].axis('off')
 
     if output_path is not None:
         os.makedirs(output_path, exist_ok=True)

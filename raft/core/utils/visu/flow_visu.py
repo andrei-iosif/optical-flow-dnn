@@ -115,7 +115,7 @@ def flow_to_color(flow_uv, clip_flow=None, convert_to_bgr=False, channels_last=T
     Returns:
         np.ndarray: Flow visualization image of shape [H, W, 3]
     """
-    assert flow_uv.ndim == 3, 'input flow must have three dimensions'
+    assert flow_uv.ndim == 3, f'Input flow must have three dimensions, current shape is {flow_uv.shape}'
     assert (channels_last and flow_uv.shape[2] == 2) or (not channels_last and flow_uv.shape[0] == 2), 'input flow must have shape [H,W,2] or [2,H,W]'
 
     if clip_flow is not None:

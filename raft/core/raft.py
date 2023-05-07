@@ -170,7 +170,10 @@ class RAFT(nn.Module):
 
         if test_mode:
             # TODO: refactoring of evaluate.py
-            return coords_1 - coords_0, flow_up
+            if self.args.uncertainty:
+                return flow_variance_up, flow_up
+            else:
+                return coords_1 - coords_0, flow_up
             
         return flow_predictions
 
