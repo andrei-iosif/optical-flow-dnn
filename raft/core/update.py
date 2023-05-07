@@ -40,7 +40,10 @@ class FlowHeadWithUncertainty(nn.Module):
         mean, var = x[:, :2, :, :], x[:, 2:, :, :]
 
         # Predict log(var) => no special activation
-        return mean, var
+        # return mean, var
+
+        # Predict variance => need exponential activation to ensure positive values
+        return mean, torch.exp(var)
 
 
 class ConvGRU(nn.Module):

@@ -6,16 +6,22 @@
 #     --stage chairs --validation chairs --gpus 0 --num_steps 5000 \
 #     --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 --seed 0 --debug_iter
 
-python -u train.py --name overfit_raft_chairs_100_sample_seed_0_nll_loss_v1_UPDATE \
-    --checkpoint_out=../checkpoints/raft_uncertainty/overfit_raft_chairs_100_sample_seed_0_nll_loss_v1_UPDATE \
-    --num_overfit_samples 100 --val_freq 1000 --stage chairs --validation chairs \
-    --gpus 0 --num_steps 5000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 \
-    --seed 0 --uncertainty --debug_iter
-
 # python -u train.py --name overfit_raft_chairs_100_sample_seed_0_nll_loss_v2_UPDATE \
 #     --num_overfit_samples 100 --val_freq 1000 --stage chairs --validation chairs \
 #     --gpus 0 --num_steps 5000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 \
 #     --seed 0 --uncertainty --debug_iter
+
+# python -u train.py --name overfit_raft_chairs_100_sample_seed_0_nll_loss_v1_residual_var \
+#     --checkpoint_out=../checkpoints/raft_uncertainty/overfit_raft_chairs_100_sample_seed_0_nll_loss_v1_residual_var \
+#     --num_overfit_samples 100 --val_freq 1000 --stage chairs --validation chairs \
+#     --gpus 0 --num_steps 5000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 \
+#     --seed 0 --uncertainty --debug_iter
+
+python -u train.py --name overfit_raft_chairs_100_sample_seed_0_nll_loss_v1_residual_var_no_log \
+    --checkpoint_out=../checkpoints/raft_uncertainty/overfit_raft_chairs_100_sample_seed_0_nll_loss_v1_residual_var_no_log \
+    --num_overfit_samples 100 --val_freq 1000 --stage chairs --validation chairs \
+    --gpus 0 --num_steps 5000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 \
+    --seed 0 --uncertainty --debug_iter
 
 
 ## Baseline experiments

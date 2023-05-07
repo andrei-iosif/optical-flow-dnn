@@ -348,8 +348,7 @@ class RaftUncertaintyLoss(nn.Module):
         # Implementation inspired from:
         # https://pytorch.org/docs/stable/generated/torch.nn.GaussianNLLLoss.html
 
-        pred_mean, pred_log_variance = flow_pred
-        pred_variance = torch.exp(pred_log_variance)
+        pred_mean, pred_variance = flow_pred
 
         # Prevent too small variance values
         pred_variance = torch.clamp(pred_variance, min=self.min_variance)
