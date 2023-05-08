@@ -60,7 +60,7 @@ def fetch_loss_func(args):
         return losses.RaftSemanticLoss(gamma=args.gamma, w_smooth=args.semantic_loss_weight, debug=args.debug_iter)
     elif args.uncertainty:
         print("Training using RAFT uncertainty loss")
-        return losses.RaftUncertaintyLoss(gamma=args.gamma, debug=args.debug_iter)
+        return losses.RaftUncertaintyLoss(gamma=args.gamma, debug=args.debug_iter, log_variance=args.log_variance)
     else:
         print("Training using base RAFT loss")
         return losses.RaftLoss(gamma=args.gamma, debug=args.debug_iter)
@@ -206,9 +206,11 @@ if __name__ == '__main__':
         help="Number of samples used to compute validation metrics. By default, the entire validation dataset is used.")
     parser.add_argument('--semantic_loss', type=bool, default=False, help="Use semantic correction for training.")
     parser.add_argument('--semantic_loss_weight', type=float, default=0.5, help="Weight for semantic loss term")
-    parser.add_argument('--uncertainty', action='store_true', help='Enable flow uncertainty estimation')
     parser.add_argument('--debug', action='store_true', help="In debug mode, additional plots are generated and uploaded to ClearML")
     parser.add_argument('--debug_iter', action='store_true', help="Save metrics for all refinement iterations")
+    parser.add_argument('--uncertainty', action='store_true', help='Enable flow uncertainty estimation')
+    parser.add_argument('--residual_variance', action='store_true', help='If True, predict variance for residual flow instead of flow variance')
+    parser.add_argument('--log_variance', action='store_true', help='If true, variance is predicted in log space')
     args = parser.parse_args()
 
     # Initialize ClearML task
@@ -220,11 +222,15 @@ if __name__ == '__main__':
     if args.checkpoint_out is not None and not os.path.isdir(args.checkpoint_out):
         os.makedirs(args.checkpoint_out, exist_ok=True)
 
-    if "uncertainty" not in args:
-        args.uncertainty = False
     if "debug" not in args:
         args.debug = False
     if "debug_iter" not in args:
         args.debug_iter = False
+    if "uncertainty" not in args:
+        args.uncertainty = False
+    if "residual_variance" not in args:
+        args.residual_variance = False
+    if "log_variance" not in args:
+        args.log_variance = False
 
     train(args)

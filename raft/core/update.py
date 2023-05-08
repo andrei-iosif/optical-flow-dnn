@@ -26,8 +26,10 @@ class FlowHeadWithUncertainty(nn.Module):
 
     If we assume the output flow has Gaussian distribution, we predict both the mean and the variance of that distribution.
     """
-    def __init__(self, input_dim=128, hidden_dim=256):
+    def __init__(self, input_dim=128, hidden_dim=256, log_variance=False):
         super(FlowHeadWithUncertainty, self).__init__()
+        self.log_variance = log_variance
+
         self.conv1 = nn.Conv2d(input_dim, hidden_dim, 3, padding=1)
 
         # Double the number of output channels => mean and variance for both flow components
@@ -36,14 +38,14 @@ class FlowHeadWithUncertainty(nn.Module):
 
     def forward(self, x):
         x = self.conv2(self.relu(self.conv1(x)))
-
         mean, var = x[:, :2, :, :], x[:, 2:, :, :]
 
-        # Predict log(var) => no special activation
-        # return mean, var
-
-        # Predict variance => need exponential activation to ensure positive values
-        return mean, torch.exp(var)
+        if self.log_variance:
+            # Predict log(var) => no special activation
+            return mean, var
+        else:
+            # Predict variance => need exponential activation to ensure positive values
+            return mean, torch.exp(var)
 
 
 class ConvGRU(nn.Module):
@@ -208,7 +210,7 @@ class BasicUpdateBlock(nn.Module):
         self.gru = SepConvGRU(hidden_dim=hidden_dim, input_dim=128+hidden_dim)
 
         if self.args.uncertainty:
-            self.flow_head = FlowHeadWithUncertainty(hidden_dim, hidden_dim=256)
+            self.flow_head = FlowHeadWithUncertainty(hidden_dim, hidden_dim=256, log_variance=args.log_variance)
         else:
             self.flow_head = FlowHead(hidden_dim, hidden_dim=256)
 

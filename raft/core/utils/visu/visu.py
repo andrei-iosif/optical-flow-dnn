@@ -13,7 +13,8 @@ def flow_confidence_visu(flow_var):
     var = (u_flow_var + v_flow_var) / 2
     return np.clip(var, 0.0, 10.0)
 
-def inputs_visu(img_1, gt_flow, valid_flow_mask=None, semseg_gt=None, sample_idx=-1, output_path=None):
+def inputs_visu(img_1, gt_flow, valid_flow_mask=None, semseg_gt=None, sample_idx=-1, 
+                output_path=None, flow_uncertainty=None):
     """
     Create visualization of input images, ground truth optical flow, and optionally, valid mask and/or
     semantic segmentation ground truth.
@@ -25,6 +26,7 @@ def inputs_visu(img_1, gt_flow, valid_flow_mask=None, semseg_gt=None, sample_idx
         semseg_gt (np.ndarray): Semantic segmentation ground truth, RGB format, shape [3, H, W]
         sample_idx (int): Frame number
         output_path (str): Path where the visu is saved
+        flow_uncertainty(np.ndarray): Optical flow uncertainty ground truth, shape [1, H, W]
     """
     if valid_flow_mask is not None:
         gt_flow = gt_flow * valid_flow_mask
@@ -37,7 +39,8 @@ def inputs_visu(img_1, gt_flow, valid_flow_mask=None, semseg_gt=None, sample_idx
 
     should_plot_valid_mask = valid_flow_mask is not None and np.sum(valid_flow_mask) != height * width
     should_plot_semseg = semseg_gt is not None
-    use_small_plot = not should_plot_valid_mask and not should_plot_semseg
+    should_plot_uncertainty = flow_uncertainty is not None
+    use_small_plot = not should_plot_valid_mask and not should_plot_semseg and not should_plot_uncertainty
 
     fig, axes = plt.subplots(1, 2) if use_small_plot else plt.subplots(2, 2)
     img_axis = axes[0] if use_small_plot else axes[0, 0]
@@ -59,6 +62,9 @@ def inputs_visu(img_1, gt_flow, valid_flow_mask=None, semseg_gt=None, sample_idx
         semseg_gt = semseg_gt.transpose(1, 2, 0).astype(np.uint8)
         axes[1, 1].imshow(semseg_gt)
         axes[1, 1].set_title('Semseg GT', fontsize=25)
+    elif should_plot_uncertainty:
+        axes[1, 1].imshow(flow_uncertainty, cmap='jet')
+        axes[1, 1].set_title('Flow uncertainty GT', fontsize=25)
     elif not use_small_plot:
         axes[1, 1].axis('off')
 

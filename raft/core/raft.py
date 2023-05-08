@@ -131,9 +131,10 @@ class RAFT(nn.Module):
         if flow_init is not None:
             coords_1 = coords_1 + flow_init
 
-        # Initialize flow variance
-        N, _, H, W = image_1.shape
-        flow_variance = torch.zeros((N, 2, H//8, W//8), device=image_1.device)
+        # Initialize flow variance (in case we predict variance for residual flow)
+        if self.args.residual_variance:
+            N, _, H, W = image_1.shape
+            flow_variance = torch.zeros((N, 2, H//8, W//8), device=image_1.device)
 
         # Iterative refinement
         flow_predictions = []
@@ -148,8 +149,10 @@ class RAFT(nn.Module):
                 net, up_mask, flow_out = self.update_block(net, context_fmap, corr, flow)
 
             if self.args.uncertainty:
-                # delta_flow, flow_variance = flow_out
-                delta_flow, delta_flow_variance = flow_out
+                if self.args.residual_variance:
+                    delta_flow, delta_flow_variance = flow_out
+                else:
+                    delta_flow, flow_variance = flow_out
             else:
                 delta_flow = flow_out
 
@@ -158,7 +161,8 @@ class RAFT(nn.Module):
             coords_1 = coords_1 + delta_flow
 
             # Update flow variance estimation
-            flow_variance = flow_variance + delta_flow_variance
+            if self.args.residual_variance:
+                flow_variance = flow_variance + delta_flow_variance
 
             # Upsample predictions
             if up_mask is None:

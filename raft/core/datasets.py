@@ -16,15 +16,16 @@ from core.utils.random import set_random_seed, seed_worker
 
 
 class FlowDataset(data.Dataset):
-    def __init__(self, aug_params=None, sparse=False, use_semseg=False, from_npz=False, from_png=False):
+    def __init__(self, aug_params=None, sparse=False, use_semseg=False, from_npz=False, from_png=False, has_uncertainty=False):
         """ Constructor for FlowDataset class.
 
         Args:
-            aug_params (_type_, optional): _description_. Defaults to None.
-            sparse (bool, optional): If true, read sparse flow in KITTI format. Defaults to False.
-            use_semseg (bool, optional): If true, read also semantic segmentation GT. Defaults to False.
-            from_npz (bool, optional): If true, read flow from npz files (VIPER format). Defaults to False.
-            from_png (bool, optional): If true, read flow from png files (Virtual KITTI format). Defaults to False.
+            aug_params (dict, optional): Parameters for image augmentation. Defaults to None.
+            sparse (bool, optional): If True, read sparse flow in KITTI format. Defaults to False.
+            use_semseg (bool, optional): If True, read also semantic segmentation GT. Defaults to False.
+            from_npz (bool, optional): If True, read flow from npz files (VIPER format). Defaults to False.
+            from_png (bool, optional): If True, read flow from png files (Virtual KITTI format). Defaults to False.
+            has_uncertainty (bool, optional): If True, read flow uncertainty (HD1K dataset). Defaults to False.
         """
         self.augmentor = None
         self.sparse = sparse
@@ -46,7 +47,11 @@ class FlowDataset(data.Dataset):
         self.from_npz = from_npz
         self.from_png = from_png
 
+        self.has_uncertainty = has_uncertainty
+        self.flow_uncertainty_list = []
+
     def __getitem__(self, index):
+        # Sintel and KITTI test submission
         if self.is_test:
             img1 = frame_utils.read_gen(self.image_list[index][0])
             img2 = frame_utils.read_gen(self.image_list[index][1])
@@ -75,6 +80,11 @@ class FlowDataset(data.Dataset):
             flow, valid = frame_utils.read_vkitti_png_flow(self.flow_list[index])
         else:
             flow = frame_utils.read_gen(self.flow_list[index])
+
+        # Read flow uncertainty GT
+        flow_uncertainty = None
+        if self.has_uncertainty:
+            flow_uncertainty = frame_utils.read_flow_uncertainty(self.flow_uncertainty_list[index])
 
         # Read semseg GT
         semseg_1, semseg_2 = None, None
@@ -126,6 +136,8 @@ class FlowDataset(data.Dataset):
 
         if self.use_semseg:
             return img1, img2, flow, valid.float(), semseg_1, semseg_2
+        elif self.has_uncertainty:
+            return img1, img2, flow, valid.float(), flow_uncertainty
         else:
             return img1, img2, flow, valid.float()
 
@@ -218,12 +230,13 @@ class KITTI(FlowDataset):
 
 class HD1K(FlowDataset):
     def __init__(self, aug_params=None, root='datasets/HD1K'):
-        super(HD1K, self).__init__(aug_params, sparse=True)
+        super(HD1K, self).__init__(aug_params, sparse=True, has_uncertainty=True)
 
         seq_ix = 0
         while True:
             flows = sorted(glob(os.path.join(root, 'hd1k_flow_gt', 'flow_occ/%06d_*.png' % seq_ix)))
             images = sorted(glob(os.path.join(root, 'hd1k_input', 'image_2/%06d_*.png' % seq_ix)))
+            flow_uncertainty = sorted(glob(os.path.join(root, 'hd1k_flow_uncertainty', 'flow_unc/%06d_*.png' % seq_ix)))
 
             if len(flows) == 0:
                 break
@@ -231,6 +244,7 @@ class HD1K(FlowDataset):
             for i in range(len(flows) - 1):
                 self.flow_list += [flows[i]]
                 self.image_list += [[images[i], images[i + 1]]]
+                self.flow_uncertainty_list += [flow_uncertainty[i]]
 
             seq_ix += 1
 

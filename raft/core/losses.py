@@ -306,7 +306,7 @@ class RaftSemanticLoss(nn.Module):
         
 
 class RaftUncertaintyLoss(nn.Module):
-    def __init__(self, gamma=0.8, max_flow=MAX_FLOW, min_variance=1e-4, debug=False):
+    def __init__(self, gamma=0.8, max_flow=MAX_FLOW, min_variance=1e-4, debug=False, log_variance=False):
         """_summary_
 
         Args:
@@ -314,12 +314,14 @@ class RaftUncertaintyLoss(nn.Module):
             max_flow (float, optional): Maximum flow magnitude. Defaults to MAX_FLOW.
             min_variance (float, optional): Small value added to variance estimation, to avoid numerical issues. Defaults to 1e-4.
             debug (bool, optional): If True, save metrics for intermediate flow refinement iterations. Defaults to False
+            log_variance (bool, optional): If True, consider that variance is predicted in log-space. Defaults to False
         """
         super(RaftUncertaintyLoss, self).__init__()
         self.gamma = gamma 
         self.max_flow = max_flow
         self.min_variance = min_variance
         self.debug = debug
+        self.log_variance = log_variance
 
     def nll_loss_v1(self, flow_pred, flow_gt, valid_mask):
         """ Compute negative log-likelihood loss for Gaussian predictions.
@@ -347,20 +349,22 @@ class RaftUncertaintyLoss(nn.Module):
     def nll_loss_v2(self, flow_pred, flow_gt, valid_mask):
         # Implementation inspired from:
         # https://pytorch.org/docs/stable/generated/torch.nn.GaussianNLLLoss.html
+        # For numerical stability, the variance is clamped to interval [min_variance, inf) and a constant value is added
 
         pred_mean, pred_variance = flow_pred
 
         # Prevent too small variance values
         pred_variance = torch.clamp(pred_variance, min=self.min_variance)
 
-        nll_loss = torch.sum((torch.abs(flow_gt - pred_mean) / pred_variance + torch.log(pred_variance)), dim=1)
+        nll_loss = 0.5 * torch.sum((torch.abs(flow_gt - pred_mean) / pred_variance + torch.log(pred_variance)), dim=1)
+        nll_loss += 0.5 * math.log(2 * math.pi)
         return torch.sum(nll_loss * valid_mask) / torch.sum(valid_mask)
 
     def forward(self, flow_preds, flow_gt, flow_valid_mask):
         """ Compute loss.
 
         Args:
-            flow_preds (list(torch.Tensor)): List of intermediate flow predictions, shape [(B, 2, H, W), (B, )].
+            flow_preds (list(torch.Tensor)): List of intermediate flow predictions, shape [(B, 2, H, W), (B, 2, H, W)].
             flow_gt (torch.Tensor): Flow ground truth, shape [B, 2, H, W].
             valid_mask (torch.Tensor): Flow validity mask; used to compute loss only for valid GT positions, shape [B, H, W].
             
@@ -381,8 +385,10 @@ class RaftUncertaintyLoss(nn.Module):
 
         for i in range(num_predictions):
             loss_weight = self.gamma ** (num_predictions - i - 1)
-            flow_loss = self.nll_loss_v1(flow_preds[i], flow_gt, valid_mask)
-            # flow_loss = self.nll_loss_v2(flow_preds[i], flow_gt, valid_mask)
+            if self.log_variance:
+                flow_loss = self.nll_loss_v1(flow_preds[i], flow_gt, valid_mask)
+            else:
+                flow_loss = self.nll_loss_v2(flow_preds[i], flow_gt, valid_mask)
 
             # Final loss is weighted sum of losses for each flow refinement iteration
             total_loss += loss_weight * flow_loss
