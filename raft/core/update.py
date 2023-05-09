@@ -36,6 +36,8 @@ class FlowHeadWithUncertainty(nn.Module):
         self.conv2 = nn.Conv2d(hidden_dim, 4, 3, padding=1)
         self.relu = nn.ReLU(inplace=True)
 
+        self.elu = nn.ELU()
+
     def forward(self, x):
         x = self.conv2(self.relu(self.conv1(x)))
         mean, var = x[:, :2, :, :], x[:, 2:, :, :]
@@ -45,7 +47,11 @@ class FlowHeadWithUncertainty(nn.Module):
             return mean, var
         else:
             # Predict variance => need exponential activation to ensure positive values
-            return mean, torch.exp(var)
+            # return mean, torch.exp(var)
+
+            # ELU activation
+            var = self.elu(var) + 1 + 1e-15
+            return mean, var
 
 
 class ConvGRU(nn.Module):
@@ -221,7 +227,7 @@ class BasicUpdateBlock(nn.Module):
             nn.Conv2d(256, 64*9, 1, padding=0))
 
     def forward(self, net, context_fmap, corr, flow):
-        """ 
+        """ `
         Args:
             net (torch.Tensor): Hidden state of ConvGRU, shape [B, hidden_dim, H, W]
             context_fmap (torch.Tensor): Context feature map, shape [B, input_dim, H, W]
