@@ -75,24 +75,29 @@
 # python -u train.py --name train_raft_viper_vkitti_seed_1234_mixed --restore_ckpt=../checkpoints/raft_viper/train_raft_viper_seed_1234_mixed/raft-viper.pth --checkpoint_out=../checkpoints/raft_viper_vkitti/train_raft_viper_vkitti_seed_1234_mixed --stage virtual_kitti --validation kitti --gpus 0 --num_steps 100000 --batch_size 6 --lr 0.0001 --image_size 288 960 --wdecay 0.0001 --seed 1234 --mixed_precision
 
 
-python -u train.py --name raft_chairs_seed_1234 \
-    --checkpoint_out=../checkpoints/raft_baseline/raft_chairs_seed_1234 \
+# python -u train.py --name raft_chairs_seed_1234 \
+#     --checkpoint_out=../checkpoints/raft_baseline/raft_chairs_seed_1234 \
+#     --stage chairs --validation chairs \
+#     --gpus 0 --num_steps 100000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 \
+#     --seed 1234 --debug_iter
+
+# python -u train.py --name raft_chairs_seed_0 \
+#     --checkpoint_out=../checkpoints/raft_baseline/raft_chairs_seed_0 \
+#     --stage chairs --validation chairs \
+#     --gpus 0 --num_steps 100000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 \
+#     --seed 0 --debug_iter
+
+# python -u train.py --name raft_chairs_seed_42 \
+#     --checkpoint_out=../checkpoints/raft_baseline/raft_chairs_seed_42 \
+#     --stage chairs --validation chairs \
+#     --gpus 0 --num_steps 100000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 \
+#     --seed 42 --debug_iter
+
+python -u train.py --name raft_chairs_seed_42_dropout \
+    --checkpoint_out=../checkpoints/raft_baseline/raft_chairs_seed_42_dropout \
     --stage chairs --validation chairs \
     --gpus 0 --num_steps 100000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 \
-    --seed 1234 --debug_iter
-
-python -u train.py --name raft_chairs_seed_0 \
-    --checkpoint_out=../checkpoints/raft_baseline/raft_chairs_seed_0 \
-    --stage chairs --validation chairs \
-    --gpus 0 --num_steps 100000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 \
-    --seed 0 --debug_iter
-
-python -u train.py --name raft_chairs_seed_42 \
-    --checkpoint_out=../checkpoints/raft_baseline/raft_chairs_seed_42 \
-    --stage chairs --validation chairs \
-    --gpus 0 --num_steps 100000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 \
-    --seed 42 --debug_iter
-
+    --seed 42 --debug_iter --dropout 0.2
 
 ## DEBUG
 # python -u train.py \

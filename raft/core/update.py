@@ -181,11 +181,16 @@ class BasicMotionEncoder(nn.Module):
 
 
 class SmallUpdateBlock(nn.Module):
-    def __init__(self, args, hidden_dim=96):
+    def __init__(self, args, hidden_dim=96, dropout=0.0):
         super(SmallUpdateBlock, self).__init__()
         self.encoder = SmallMotionEncoder(args)
         self.gru = ConvGRU(hidden_dim=hidden_dim, input_dim=82+64)
         self.flow_head = FlowHead(hidden_dim, hidden_dim=128)
+
+        # Optionally, add dropout
+        self.dropout = None
+        if dropout > 0:
+            self.dropout = nn.Dropout2d(p=dropout)
 
     def forward(self, net, inp, corr, flow):
         motion_features = self.encoder(flow, corr)
@@ -199,12 +204,13 @@ class SmallUpdateBlock(nn.Module):
 class BasicUpdateBlock(nn.Module):
     """ Update block used for iterative flow refinement in base RAFT. """
 
-    def __init__(self, args, hidden_dim=128, input_dim=128):
+    def __init__(self, args, hidden_dim=128, input_dim=128, dropout=0.0):
         """
         Args:
             args (argparse.Namespace): Command-line arguments
             hidden_dim (int, optional): Number of channels for ConvGRU hidden dimension. Defaults to 128.
             input_dim (int, optional): Number of channels for input dimension. Defaults to 128.
+            dropout (float, optional): Dropout probability. Defaults to 0.0
         """
         super(BasicUpdateBlock, self).__init__()
         self.args = args
@@ -225,6 +231,11 @@ class BasicUpdateBlock(nn.Module):
             nn.Conv2d(128, 256, 3, padding=1),
             nn.ReLU(inplace=True),
             nn.Conv2d(256, 64*9, 1, padding=0))
+        
+        # Optionally, add dropout
+        self.dropout = None
+        if dropout > 0:
+            self.dropout = nn.Dropout2d(p=dropout)
 
     def forward(self, net, context_fmap, corr, flow):
         """ `
@@ -245,6 +256,10 @@ class BasicUpdateBlock(nn.Module):
 
         # Pass through GRU
         net = self.gru(net, context_fmap)
+
+        # Optional dropout layer applied on GRU hidden state
+        if self.dropout is not None:
+            net = self.dropout(net)
 
         # Decode residual flow (and optionally, the uncertainty)
         delta_flow = self.flow_head(net)
