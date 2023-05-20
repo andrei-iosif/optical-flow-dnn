@@ -40,6 +40,19 @@
             "cwd": "${workspaceFolder}/raft"
         },
         {
+            "name": "Python: run_inference_visu_comparison.py",
+            "type": "python",
+            "request": "launch",
+            "module": "core.utils.visu.run_inference_visu_comparison",
+            "args": [
+                "--model_1", "../checkpoints/raft_baseline/raft_chairs_seed_0/raft-chairs.pth",
+                "--model_2", "../checkpoints/raft_uncertainty/raft_chairs_seed_0_nll_loss_v1_log_variance/raft-chairs.pth",
+                "--model_3", "../checkpoints/raft_uncertainty/raft_chairs_seed_0_nll_loss_v2_residual_variance/raft-chairs.pth",
+                "--out", "../dump/inference/2023_05_20_uncertainty_comparison_chairs_val",
+            ],
+            "cwd": "${workspaceFolder}/raft"
+        },
+        {
             "name": "Python: run_dataset_visu.py",
             "type": "python",
             "request": "launch",
@@ -47,6 +60,20 @@
             "args": [
                 "--dataset_root", "/home/mnegru/repos/optical-flow-dnn/raft/datasets/FlyingChairs",
                 "--out", "/home/mnegru/repos/optical-flow-dnn/dump/input/chairs_dataset",
+            ],
+            "cwd": "${workspaceFolder}/raft"
+        }
+        ,
+        {
+            "name": "Python: evaluate_flow_uncertainty.py",
+            "type": "python",
+            "request": "launch",
+            "module": "core.evaluation.evaluate_flow_uncertainty",
+            "args": [
+                "--model", "../checkpoints/raft_uncertainty/raft_chairs_seed_0_nll_loss_v2_residual_variance/raft-chairs.pth",
+                "--uncertainty",
+                "--residual_variance",
+                "--out", "/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation/Sintel",
             ],
             "cwd": "${workspaceFolder}/raft"
         }

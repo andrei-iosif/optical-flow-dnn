@@ -1,4 +1,5 @@
 import argparse
+import copy
 import torch
 
 import core.datasets as datasets
@@ -27,20 +28,19 @@ def run_visu(img_1, gt_flow, flow_predictions, sample_id, output_path):
 
 def run(args):
     iters = 24
+    args_1, args_2, args_3 = args
 
     # Load model checkpoints
-    model_1 = load_model(args.model_1, args)
-    model_2 = load_model(args.model_2, args)
-    model_3 = load_model(args.model_3, args)
-    # model_4 = load_model(args.model_4, args)
-    # models = [model_1, model_2, model_3, model_4]
-    # model_names = ["things", "viper", "vkitti", "viper_vkitti"]
+    model_1 = load_model(args_1.model_1, args_1)    
+    model_2 = load_model(args_2.model_2, args_2)
+    model_3 = load_model(args_3.model_3, args_3)
 
     models = [model_1, model_2, model_3]
-    model_names = ["things", "viper", "viper semantic"]
+    model_names = ["baseline", "raft_uncertainty_v1", "raft_uncertainty_v2"]
 
     # Load dataset
-    dataset = datasets.KITTI(split='training', root='/home/mnegru/repos/optical-flow-dnn/raft/datasets/KITTI')
+    # dataset = datasets.KITTI(split='training', root='/home/mnegru/repos/optical-flow-dnn/raft/datasets/KITTI')
+    dataset = datasets.FlyingChairs(split='validation', root='/home/mnegru/repos/optical-flow-dnn/raft/datasets/FlyingChairs')
     print(f"Loaded dataset, size = {len(dataset)}")
 
     # Run inference and save visus
@@ -59,7 +59,7 @@ def run(args):
                 flow = padder.unpad(flow_pr[0]).cpu().numpy()
                 flow_predictions.append((model_names[idx], flow))
 
-            run_visu(image1, flow_gt, flow_predictions, sample_id, args.out)
+            run_visu(image1, flow_gt, flow_predictions, sample_id, args_1.out)
 
 
 if __name__ == '__main__':
@@ -72,9 +72,20 @@ if __name__ == '__main__':
     parser.add_argument('--mixed_precision', action='store_true', default=False, help='use mixed precision')
     parser.add_argument('--alternate_corr', action='store_true', default=False, help='use efficent correlation implementation')
     parser.add_argument('--out', help="output path")
-    args = parser.parse_args()
+    
+    args_1 = parser.parse_args()
+    args_1.uncertainty = False
+    args_1.log_variance = False
+    args_1.residual_variance = False
 
-    if "uncertainty" not in args:
-        args.uncertainty = False
+    args_2 = copy.deepcopy(args_1)
+    args_2.uncertainty = True
+    args_2.log_variance = True
+    args_2.residual_variance = False
 
-    run(args)
+    args_3 = copy.deepcopy(args_1)
+    args_3.uncertainty = True
+    args_3.log_variance = False
+    args_3.residual_variance = True
+
+    run([args_1, args_2, args_3])
