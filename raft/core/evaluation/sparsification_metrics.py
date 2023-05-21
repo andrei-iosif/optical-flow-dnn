@@ -55,3 +55,19 @@ def compute_sparsification(flow_epe_img: np.ndarray, flow_uncertainty: np.ndarra
     epe_vals = np.array(epe_vals)
     epe_vals_norm = epe_vals / np.max(epe_vals)
     return epe_vals_norm
+
+
+def compute_ause_metric(epe_vals, epe_vals_oracle):
+    """ Compute AUSE metric, defined as area under the sparsification error curve. 
+    Sparsification error is the difference between sparsification and its oracle.
+
+    Args:
+        epe_vals (np.ndarray): Sparsification curve (EPE values when pixels with highest uncertainty are removed)
+        epe_vals_oracle (np.ndarray): Oracle sparsification curve (EPE values when pixels with highest EPE are removed)
+    Returns:
+        Float value
+    """
+    x = np.arange(0, 1, 0.1)
+    sparsification_error = np.abs(epe_vals - epe_vals_oracle)
+    ause = np.trapz(sparsification_error, x=x)
+    return ause
