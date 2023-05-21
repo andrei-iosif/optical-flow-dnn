@@ -76,6 +76,22 @@
                 "--out", "/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation/Sintel",
             ],
             "cwd": "${workspaceFolder}/raft"
+        },
+        {
+            "name": "Python: evaluate_ensemble.py",
+            "type": "python",
+            "request": "launch",
+            "module": "core.evaluation.uncertainty.evaluate_ensemble",
+            "args": [],
+            "cwd": "${workspaceFolder}/raft"
+        },
+        {
+            "name": "Python: evaluate_mc_dropout.py",
+            "type": "python",
+            "request": "launch",
+            "module": "core.evaluation.uncertainty.evaluate_mc_dropout",
+            "args": [],
+            "cwd": "${workspaceFolder}/raft"
         }
     ]
 }

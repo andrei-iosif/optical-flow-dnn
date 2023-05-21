@@ -258,8 +258,8 @@ class BasicUpdateBlock(nn.Module):
         net = self.gru(net, context_fmap)
 
         # Optional dropout layer applied on GRU hidden state
-        if self.dropout is not None:
-            net = self.dropout(net)
+        # if self.dropout is not None:
+        #     net = self.dropout(net)
 
         # Decode residual flow (and optionally, the uncertainty)
         delta_flow = self.flow_head(net)

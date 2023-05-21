@@ -5,8 +5,8 @@ import torch
 import core.datasets as datasets
 from core.raft import RAFT
 from core.utils.utils import InputPadder
-from core.evaluation.sparsification_metrics import compute_sparsification, compute_sparsification_oracle
-from core.evaluation.sparsification_plots import sparsification_plot
+from core.evaluation.uncertainty.sparsification_metrics import compute_sparsification, compute_sparsification_oracle
+from core.evaluation.uncertainty.sparsification_plots import sparsification_plot
 from core.evaluation.metrics import Metrics
 
 
