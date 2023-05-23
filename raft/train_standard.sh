@@ -99,38 +99,17 @@
 #     --gpus 0 --num_steps 100000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 \
 #     --seed 42 --debug_iter --dropout 0.2
 
-python -u train.py --name raft_chairs_seed_42_dropout_encoder_only \
-    --checkpoint_out=../checkpoints/raft_baseline/raft_chairs_seed_42_dropout_encoder_only \
+# python -u train.py --name raft_chairs_seed_42_dropout_encoder_only \
+#     --checkpoint_out=../checkpoints/raft_baseline/raft_chairs_seed_42_dropout_encoder_only \
+#     --stage chairs --validation chairs \
+#     --gpus 0 --num_steps 100000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 \
+#     --seed 42 --debug_iter --dropout 0.2
+
+python -u train.py --name raft_chairs_seed_42_nll_loss_v2_residual_variance \
+    --checkpoint_out=../checkpoints/raft_uncertainty/raft_chairs_seed_42_nll_loss_v2_residual_variance \
     --stage chairs --validation chairs \
     --gpus 0 --num_steps 100000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 \
-    --seed 42 --debug_iter --dropout 0.2
-
-## DEBUG
-# python -u train.py \
-#     --name overfit_raft_viper_100_sample_seed_0_all_iters_semantic_loss_FIXED \
-#     --num_overfit_samples 100 \
-#     --val_freq 1000 \
-#     --restore_ckpt ../models/raft_original_models/raft-things.pth \
-#     --stage viper --validation kitti --gpus 0 \
-#     --num_steps 5000 --batch_size 6 --lr 1e-4 \
-#     --image_size 288 960 \
-#     --wdecay 0.0001 \
-#     --seed 0 \
-#     --debug_iter --semantic_loss true
-
-# python -u train.py \
-#     --name overfit_raft_viper_100_sample_seed_0_all_iters_semantic_loss_weight_5 \
-#     --num_overfit_samples 100 \
-#     --val_freq 1000 \
-#     --restore_ckpt ../models/raft_original_models/raft-things.pth \
-#     --stage viper --validation kitti --gpus 0 \
-#     --num_steps 5000 --batch_size 6 --lr 1e-4 \
-#     --image_size 288 960 \
-#     --wdecay 0.0001 \
-#     --seed 0 \
-#     --debug_iter \
-#     --semantic_loss true --semantic_loss_weight 5.0
-## DEBUG
+    --seed 42 --uncertainty --debug_iter --residual_variance
 
 # RAFT Semantic
 # python -u train.py \

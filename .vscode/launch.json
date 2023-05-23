@@ -92,6 +92,14 @@
             "module": "core.evaluation.uncertainty.evaluate_mc_dropout",
             "args": [],
             "cwd": "${workspaceFolder}/raft"
+        },
+        {
+            "name": "Python: evaluate_flow_iterations.py",
+            "type": "python",
+            "request": "launch",
+            "module": "core.evaluation.uncertainty.evaluate_flow_iterations",
+            "args": [],
+            "cwd": "${workspaceFolder}/raft"
         }
     ]
 }
