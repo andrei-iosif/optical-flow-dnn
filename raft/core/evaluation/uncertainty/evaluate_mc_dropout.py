@@ -7,21 +7,8 @@ import core.datasets as datasets
 from core.utils.utils import InputPadder
 from core.evaluation.uncertainty.sparsification_plots import sparsification_plot
 from core.evaluation.metrics import Metrics
-from core.evaluation.uncertainty.utils import load_model, compute_metrics
+from core.evaluation.uncertainty.utils import load_model, compute_metrics, compute_flow_variance_two_pass, get_flow_confidence_v1
 from core.utils.visu.visu import predictions_visu
-
-
-def get_flow_confidence(flow_var):
-    # Compute total variance
-    u_flow_var, v_flow_var = flow_var[0, :, :], flow_var[1, :, :]
-    var = u_flow_var + v_flow_var
-
-    # Normalize
-    max_var = np.percentile(var, 99.9)
-    epsilon = 1e-5
-    var = var / (max_var + epsilon)
-
-    return var
 
 
 def enable_dropout(model):
@@ -58,19 +45,11 @@ def dropout_inference(model, num_inferences, image_1, image_2, gt_flow, args, sa
         pred_flow_list.append(pred_flow)
 
     # Estimate mean and variance from list of predictions
-    sum = np.zeros_like(pred_flow_list[0])
-    sum_sq = np.zeros_like(pred_flow_list[0])
-    for pred_flow in pred_flow_list:
-        sum += pred_flow
-        sum_sq += pred_flow ** 2
-    
-    num_pred = len(pred_flow_list)
-    pred_flow_mean = sum / num_pred
-    pred_flow_var = (sum_sq - sum ** 2 / num_pred) / (num_pred - 1)
+    pred_flow_mean, pred_flow_var = compute_flow_variance_two_pass(pred_flow_list)
 
     if args.create_visu and sample_id % 10 == 0:
         image_1 = image_1[0].cpu().numpy()
-        flow_confidence = get_flow_confidence(pred_flow_var)
+        flow_confidence = get_flow_confidence_v1(pred_flow_var)
         predictions_visu(image_1, gt_flow, pred_flow, sample_id, os.path.join(args.out, "visu"), pred_flow_var=flow_confidence)
 
     return pred_flow_mean, pred_flow_var
@@ -117,12 +96,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     args.num_inferences = 5
+    args.dropout = 0.2
     args.iters = 24
     args.uncertainty = False
     args.residual_variance = False
     args.log_variance = False
-    args.model = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_42_dropout/raft-chairs.pth'
-    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation/Sintel/mc_dropout'
+    args.model = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_42_dropout_encoder_only/raft-chairs.pth'
+    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation/Sintel/mc_dropout_NEW'
     args.create_visu = True
 
     run(args)

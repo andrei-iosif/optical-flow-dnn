@@ -100,6 +100,14 @@
             "module": "core.evaluation.uncertainty.evaluate_flow_iterations",
             "args": [],
             "cwd": "${workspaceFolder}/raft"
+        },
+        {
+            "name": "Python: sparsification_error_plot.py",
+            "type": "python",
+            "request": "launch",
+            "module": "core.evaluation.uncertainty.sparsification_error_plot",
+            "args": [],
+            "cwd": "${workspaceFolder}/raft"
         }
     ]
 }

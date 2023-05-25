@@ -32,7 +32,7 @@ def sparsification_error_plot(errors_list, output_path=None):
     idx = np.arange(0, 1, 0.1)
 
     fig, ax = plt.subplots()
-    fig.set_size_inches(8, 3)
+    fig.set_size_inches(7, 5)
 
     for label, error in errors_list:
         ax.plot(idx, error, label=f"{label}", linewidth=2)

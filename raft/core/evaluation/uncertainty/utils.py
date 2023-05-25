@@ -41,3 +41,48 @@ def compute_metrics(pred_flow, pred_flow_var, gt_flow):
     epe_vals = compute_sparsification(flow_epe, flow_uncertainty)
 
     return epe_vals, epe_vals_oracle
+
+
+def compute_flow_variance_single_pass(pred_flow_list):
+    num_pred = len(pred_flow_list)
+    sum = np.zeros_like(pred_flow_list[0])
+    sum_sq = np.zeros_like(pred_flow_list[0])
+    for pred_flow in pred_flow_list:
+        sum += pred_flow
+        sum_sq += pred_flow ** 2
+    
+    pred_flow_mean = sum / num_pred
+    pred_flow_var = (sum_sq - sum ** 2 / num_pred) / (num_pred - 1)
+
+    return pred_flow_mean, pred_flow_var
+
+
+def compute_flow_variance_two_pass(pred_flow_list):
+    num_pred = len(pred_flow_list)
+    sum = np.zeros_like(pred_flow_list[0])
+    sum_sq = np.zeros_like(pred_flow_list[0])
+
+    for pred_flow in pred_flow_list:
+        sum += pred_flow
+    
+    pred_flow_mean = sum / num_pred
+
+    for pred_flow in pred_flow_list:
+        sum_sq += (pred_flow_mean - pred_flow) ** 2
+    
+    pred_flow_var = sum_sq / (num_pred - 1)
+
+    return pred_flow_mean, pred_flow_var
+
+
+def get_flow_confidence_v1(flow_var):
+    # Compute total variance
+    u_flow_var, v_flow_var = flow_var[0, :, :], flow_var[1, :, :]
+    var = u_flow_var + v_flow_var
+
+    # Normalize
+    max_var = np.percentile(var, 99.9)
+    epsilon = 1e-5
+    var = var / (max_var + epsilon)
+
+    return var
