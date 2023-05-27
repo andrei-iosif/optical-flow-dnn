@@ -75,9 +75,22 @@ def compute_flow_variance_two_pass(pred_flow_list):
     return pred_flow_mean, pred_flow_var
 
 
-def get_flow_confidence_v1(flow_var):
+def get_flow_confidence(flow_var):
     # Compute total variance
     u_flow_var, v_flow_var = flow_var[0, :, :], flow_var[1, :, :]
+    var = u_flow_var + v_flow_var
+
+    # Normalize
+    max_var = np.percentile(var, 99.9)
+    epsilon = 1e-5
+    var = var / (max_var + epsilon)
+
+    return var
+
+
+def get_flow_confidence_exp(flow_var):
+    # Compute total variance
+    u_flow_var, v_flow_var = np.exp(flow_var[0, :, :]), np.exp(flow_var[1, :, :])
     var = u_flow_var + v_flow_var
 
     # Normalize

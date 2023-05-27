@@ -23,12 +23,21 @@ def create_sparsification_error_plot(results_list, labels, output_path):
     
 
 if __name__ == "__main__":
-    results_1 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/raft_uncertainty_v2/results.pkl'
-    results_2 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/ensemble_3/results.pkl'
-    results_3 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/flow_iterations/results.pkl'
-    results_4 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/mc_dropout_3/results.pkl'
+    # results_1 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/raft_uncertainty_v1/results.pkl'
+    # results_2 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/raft_uncertainty_v2/results.pkl'
+    # results_3 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/ensemble_3/results.pkl'
+    # results_4 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/flow_iterations/results.pkl'
+    # results_5 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/mc_dropout_3/results.pkl'
+    # results_list = [results_1, results_2, results_3, results_4, results_5]
+    # labels = ["RAFT-Uncertainty-V1", "RAFT-Uncertainty-V2", "Ensemble-3", "FlowIterations", "Dropout-3"]
+    # output_path = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel'
+
+    results_1 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/mc_dropout_3/results.pkl'
+    results_2 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/mc_dropout_5/results.pkl'
+    results_3 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/mc_dropout_7/results.pkl'
+    results_4 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/ensemble_3/results.pkl'
     results_list = [results_1, results_2, results_3, results_4]
-    labels = ["RAFT-Uncertainty-V2", "Ensemble-3", "FlowIterations", "Dropout-3"]
-    output_path = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation/Sintel'
+    labels = ["Dropout-3", "Dropout-5", "Dropout-7",  "Ensemble-3"]
+    output_path = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel'
 
     create_sparsification_error_plot(results_list, labels, output_path)
