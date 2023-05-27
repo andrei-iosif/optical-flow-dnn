@@ -1,6 +1,5 @@
 import argparse
 import os
-import numpy as np
 import torch
 
 import core.datasets as datasets
@@ -95,14 +94,14 @@ if __name__ == '__main__':
     parser.add_argument('--out', help="Output path")
     args = parser.parse_args()
 
-    args.num_inferences = 5
+    args.num_inferences = 3
     args.dropout = 0.2
     args.iters = 24
     args.uncertainty = False
     args.residual_variance = False
     args.log_variance = False
     args.model = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_42_dropout_encoder_only/raft-chairs.pth'
-    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation/Sintel/mc_dropout_NEW'
+    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/mc_dropout_3'
     args.create_visu = True
 
     run(args)

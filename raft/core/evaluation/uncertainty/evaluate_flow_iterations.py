@@ -11,7 +11,6 @@ from core.evaluation.uncertainty.utils import load_model, compute_metrics, compu
 from core.utils.visu.visu import predictions_visu
 
 
-
 def inference(model, image_1, image_2, gt_flow, args, sample_id=-1):
     """ Run inference with single RAFT model. Compute empirical mean and variance for intermediate iterations of optical flow.
     Optionally, create predictions visu (every 10th frame).
@@ -93,7 +92,7 @@ if __name__ == '__main__':
     args.residual_variance = False
     args.log_variance = False
     args.model = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_42/raft-chairs.pth'
-    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation/Sintel/flow_iterations'
-    args.create_visu = False
+    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/flow_iterations'
+    args.create_visu = True
 
     run(args)
