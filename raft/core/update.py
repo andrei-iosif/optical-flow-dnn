@@ -65,7 +65,7 @@ class FlowVarianceHead(nn.Module):
             input_dim (int, optional): Number of input channels. Defaults to 128.
             hidden_dim (int, optional): Number of channels from first layer output. Defaults to 256.
         """
-        super(FlowHead, self).__init__()
+        super(FlowVarianceHead, self).__init__()
         self.conv1 = nn.Conv2d(input_dim, hidden_dim, 3, padding=1)
         self.conv2 = nn.Conv2d(hidden_dim, 2, 3, padding=1)
         self.relu = nn.ReLU(inplace=True)
