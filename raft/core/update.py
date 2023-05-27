@@ -54,6 +54,27 @@ class FlowHeadWithUncertainty(nn.Module):
             return mean, var
 
 
+class FlowVarianceHead(nn.Module):
+    """ Flow variance decoder module. Receives as input the hidden state from the ConvGRU.
+    Currently has same architecture as flow decoder module.
+    """
+    def __init__(self, input_dim=128, hidden_dim=256):
+        """ Initialize module.
+
+        Args:
+            input_dim (int, optional): Number of input channels. Defaults to 128.
+            hidden_dim (int, optional): Number of channels from first layer output. Defaults to 256.
+        """
+        super(FlowHead, self).__init__()
+        self.conv1 = nn.Conv2d(input_dim, hidden_dim, 3, padding=1)
+        self.conv2 = nn.Conv2d(hidden_dim, 2, 3, padding=1)
+        self.relu = nn.ReLU(inplace=True)
+        self.elu = nn.ELU()
+
+    def forward(self, x):
+        return self.elu(self.conv2(self.relu(self.conv1(x)))) + 1 + 1e-15
+    
+
 class ConvGRU(nn.Module):
     """ GRU layer with convolutional inputs and hidden state. """
     def __init__(self, hidden_dim=128, input_dim=192+128):
@@ -221,10 +242,11 @@ class BasicUpdateBlock(nn.Module):
         # ConvGRU with separable convolutions
         self.gru = SepConvGRU(hidden_dim=hidden_dim, input_dim=128+hidden_dim)
 
-        if self.args.uncertainty:
-            self.flow_head = FlowHeadWithUncertainty(hidden_dim, hidden_dim=256, log_variance=args.log_variance)
-        else:
-            self.flow_head = FlowHead(hidden_dim, hidden_dim=256)
+        # if self.args.uncertainty:
+        #     self.flow_head = FlowHeadWithUncertainty(hidden_dim, hidden_dim=256, log_variance=args.log_variance)
+        # else:
+        #     self.flow_head = FlowHead(hidden_dim, hidden_dim=256)
+        self.flow_head = FlowHead(hidden_dim, hidden_dim=256)
 
         # Upsampling mask decoder
         self.mask = nn.Sequential(
@@ -238,7 +260,7 @@ class BasicUpdateBlock(nn.Module):
             self.dropout = nn.Dropout2d(p=dropout)
 
     def forward(self, net, context_fmap, corr, flow):
-        """ `
+        """
         Args:
             net (torch.Tensor): Hidden state of ConvGRU, shape [B, hidden_dim, H, W]
             context_fmap (torch.Tensor): Context feature map, shape [B, input_dim, H, W]

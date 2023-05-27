@@ -211,6 +211,7 @@ if __name__ == '__main__':
     parser.add_argument('--uncertainty', action='store_true', help='Enable flow uncertainty estimation')
     parser.add_argument('--residual_variance', action='store_true', help='If True, predict variance for residual flow instead of flow variance')
     parser.add_argument('--log_variance', action='store_true', help='If true, variance is predicted in log space')
+    parser.add_argument('--flow_variance_last_iter', action='store_true', help="If true, add flow variance decoder only at last iteration")
     args = parser.parse_args()
 
     # Initialize ClearML task
@@ -232,5 +233,7 @@ if __name__ == '__main__':
         args.residual_variance = False
     if "log_variance" not in args:
         args.log_variance = False
+    if "flow_variance_last_iter" not in args:
+        args.flow_variance_last_iter = False
 
     train(args)

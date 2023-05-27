@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from core.update import BasicUpdateBlock, SmallUpdateBlock
+from core.update import BasicUpdateBlock, SmallUpdateBlock, FlowVarianceHead
 from core.extractor import BasicEncoder, SmallEncoder
 from core.corr import CorrBlock, AlternateCorrBlock
 from core.utils.utils import coords_grid, upflow8
@@ -52,6 +52,7 @@ class RAFT(nn.Module):
             self.fnet = BasicEncoder(output_dim=256, norm_fn='instance', dropout=args.dropout)        
             self.cnet = BasicEncoder(output_dim=hdim+cdim, norm_fn='batch', dropout=args.dropout)
             self.update_block = BasicUpdateBlock(self.args, hidden_dim=hdim, dropout=args.dropout)
+            self.flow_variance_decoder = FlowVarianceHead(input_dim=hdim, hidden_dim=256)
 
     def freeze_bn(self):
         """ Freeze BatchNorm layers. """
@@ -132,13 +133,13 @@ class RAFT(nn.Module):
             coords_1 = coords_1 + flow_init
 
         # Initialize flow variance (in case we predict variance for residual flow)
-        if self.args.residual_variance:
-            N, _, H, W = image_1.shape
-            flow_variance = torch.zeros((N, 2, H//8, W//8), device=image_1.device)
+        # if self.args.residual_variance:
+        #     N, _, H, W = image_1.shape
+        #     flow_variance = torch.zeros((N, 2, H//8, W//8), device=image_1.device)
 
         # Iterative refinement
         flow_predictions = []
-        for _ in range(iters):
+        for it in range(iters):
             # Correlation volume look-up => motion features
             coords_1 = coords_1.detach()
             corr = corr_fn(coords_1) 
@@ -148,32 +149,43 @@ class RAFT(nn.Module):
             with autocast(enabled=self.args.mixed_precision):
                 net, up_mask, flow_out = self.update_block(net, context_fmap, corr, flow)
 
-            if self.args.uncertainty:
-                if self.args.residual_variance:
-                    delta_flow, delta_flow_variance = flow_out
-                else:
-                    delta_flow, flow_variance = flow_out
-            else:
-                delta_flow = flow_out
+            # if self.args.uncertainty:
+            #     if self.args.residual_variance:
+            #         delta_flow, delta_flow_variance = flow_out
+            #     else:
+            #         delta_flow, flow_variance = flow_out
+            # else:
+            delta_flow = flow_out
 
             # Update flow estimation
             # F(t+1) = F(t) + \Delta(t)
             coords_1 = coords_1 + delta_flow
 
             # Update flow variance estimation
-            if self.args.residual_variance:
-                flow_variance = flow_variance + delta_flow_variance
+            # if self.args.residual_variance:
+            #     flow_variance = flow_variance + delta_flow_variance
+
+            # Estimate flow variance only at last iteration
+            if self.args.flow_variance_last_iter and it == iters - 1:
+                flow_variance = self.flow_variance_decoder(net)
+            else:
+                flow_variance = None
 
             # Upsample predictions
             if up_mask is None:
                 flow_up = upflow8(coords_1 - coords_0)
-                if self.args.uncertainty:
+                # if self.args.uncertainty:
+                if flow_variance is not None:
                     flow_variance_up = upflow8(flow_variance)
+                else:
+                    flow_variance_up = None
             else:
                 flow_up = self.upsample_flow(coords_1 - coords_0, up_mask)
-                # TODO: maybe need different upsampling weights for flow variance
-                if self.args.uncertainty:
+                # if self.args.uncertainty:
+                if flow_variance is not None:
                     flow_variance_up = self.upsample_flow(flow_variance, up_mask)
+                else:
+                    flow_variance_up = None
             
             if self.args.uncertainty:
                 flow_predictions.append((flow_up, flow_variance_up))
@@ -184,7 +196,7 @@ class RAFT(nn.Module):
             if self.args.uncertainty:
                 return flow_variance_up, flow_up
             else:
-                return _, flow_up
+                return None, flow_up
             
         return flow_predictions
 

@@ -385,10 +385,14 @@ class RaftUncertaintyLoss(nn.Module):
 
         for i in range(num_predictions):
             loss_weight = self.gamma ** (num_predictions - i - 1)
-            if self.log_variance:
-                flow_loss = self.nll_loss_v1(flow_preds[i], flow_gt, valid_mask)
+            flow_var = flow_preds[i][0]
+            if flow_var is not None:
+                if self.log_variance:
+                    flow_loss = self.nll_loss_v1(flow_preds[i], flow_gt, valid_mask)
+                else:
+                    flow_loss = self.nll_loss_v2(flow_preds[i], flow_gt, valid_mask)
             else:
-                flow_loss = self.nll_loss_v2(flow_preds[i], flow_gt, valid_mask)
+                flow_loss = l1_loss_fixed(flow_preds[i], flow_gt, valid_mask)
 
             # Final loss is weighted sum of losses for each flow refinement iteration
             total_loss += loss_weight * flow_loss
