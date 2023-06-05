@@ -6,7 +6,7 @@ import core.datasets as datasets
 from core.utils.utils import InputPadder
 from core.evaluation.uncertainty.sparsification_plots import sparsification_plot
 from core.evaluation.metrics import Metrics
-from core.evaluation.uncertainty.utils import load_model, compute_metrics, compute_flow_variance_two_pass, get_flow_confidence_v1
+from core.evaluation.uncertainty.utils import load_model, compute_metrics, compute_flow_variance_two_pass, get_flow_confidence
 from core.utils.visu.visu import predictions_visu
 
 
@@ -48,7 +48,7 @@ def dropout_inference(model, num_inferences, image_1, image_2, gt_flow, args, sa
 
     if args.create_visu and sample_id % 10 == 0:
         image_1 = image_1[0].cpu().numpy()
-        flow_confidence = get_flow_confidence_v1(pred_flow_var)
+        flow_confidence = get_flow_confidence(pred_flow_var)
         predictions_visu(image_1, gt_flow, pred_flow, sample_id, os.path.join(args.out, "visu"), pred_flow_var=flow_confidence)
 
     return pred_flow_mean, pred_flow_var
@@ -94,14 +94,14 @@ if __name__ == '__main__':
     parser.add_argument('--out', help="Output path")
     args = parser.parse_args()
 
-    args.num_inferences = 3
+    args.num_inferences = 7
     args.dropout = 0.2
     args.iters = 24
     args.uncertainty = False
     args.residual_variance = False
     args.log_variance = False
     args.model = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_42_dropout_encoder_only/raft-chairs.pth'
-    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/mc_dropout_3'
+    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/mc_dropout_7'
     args.create_visu = True
 
     run(args)

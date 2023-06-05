@@ -7,7 +7,7 @@ import core.datasets as datasets
 from core.utils.utils import InputPadder
 from core.evaluation.uncertainty.sparsification_plots import sparsification_plot
 from core.evaluation.metrics import Metrics
-from core.evaluation.uncertainty.utils import load_model, compute_metrics, compute_flow_variance_two_pass, get_flow_confidence_v1
+from core.evaluation.uncertainty.utils import load_model, compute_metrics, compute_flow_variance_two_pass, get_flow_confidence
 from core.utils.visu.visu import predictions_visu
 
 
@@ -42,7 +42,7 @@ def ensemble_inference(models, image_1, image_2, gt_flow, args, sample_id=-1):
 
     if args.create_visu and sample_id % 10 == 0:
         image_1 = image_1[0].cpu().numpy()
-        flow_confidence = get_flow_confidence_v1(pred_flow_var)
+        flow_confidence = get_flow_confidence(pred_flow_var)
         predictions_visu(image_1, gt_flow, pred_flow, sample_id, os.path.join(args.out, "visu"), pred_flow_var=flow_confidence)
 
     return pred_flow_mean, pred_flow_var

@@ -4,10 +4,9 @@ import torch
 
 import core.datasets as datasets
 from core.utils.utils import InputPadder
-from core.evaluation.uncertainty.sparsification_plots import sparsification_plot
-from core.evaluation.uncertainty.utils import load_model, compute_metrics, get_flow_confidence_v1
+from core.evaluation.uncertainty.utils import load_model, compute_metrics, get_flow_confidence, get_flow_confidence_exp, endpoint_error_numpy, reduce_metrics
 from core.evaluation.metrics import Metrics
-from core.utils.visu.visu import predictions_visu
+from core.utils.visu.visu import predictions_visu_uncertainty
 
 
 def run(args):
@@ -17,6 +16,7 @@ def run(args):
     # Load dataset
     # dataset = datasets.FlyingChairs(split='validation', root='/home/mnegru/repos/optical-flow-dnn/raft/datasets/FlyingChairs')
     dataset = datasets.MpiSintel(split='training', dstype='clean', root=r'/home/mnegru/repos/optical-flow-dnn/raft/datasets/Sintel')
+    # dataset = datasets.KITTI(split='training', root='/home/mnegru/repos/optical-flow-dnn/raft/datasets/KITTI')
     print(f"Loaded dataset, size = {len(dataset)}")
 
     # Run inference
@@ -24,7 +24,7 @@ def run(args):
 
     with torch.no_grad():
         for sample_id in range(len(dataset)):
-            image_1, image_2, gt_flow, _ = dataset[sample_id]
+            image_1, image_2, gt_flow, flow_valid_mask = dataset[sample_id]
             image_1 = image_1[None].cuda()
             image_2 = image_2[None].cuda()
 
@@ -36,37 +36,40 @@ def run(args):
             pred_flow = padder.unpad(pred_flow[0]).cpu().numpy()
             pred_flow_var = padder.unpad(pred_flow_var[0]).cpu().numpy()
             gt_flow = gt_flow.cpu().numpy()
+            flow_valid_mask = flow_valid_mask.cpu().numpy()
 
             if args.create_visu and sample_id % 10 == 0:
                 image_1 = image_1[0].cpu().numpy()
-                flow_confidence = get_flow_confidence_v1(pred_flow_var)
-                predictions_visu(image_1, gt_flow, pred_flow, sample_id, os.path.join(args.out, "visu"), pred_flow_var=flow_confidence)
+                flow_confidence = get_flow_confidence_exp(pred_flow_var) if args.log_variance else get_flow_confidence(pred_flow_var)
+                flow_epe = endpoint_error_numpy(pred_flow, gt_flow, flow_valid_mask)
 
-            epe_vals, epe_vals_oracle = compute_metrics(pred_flow, pred_flow_var, gt_flow)
-            metrics.add(sample_id, "epe_vals", epe_vals)
-            metrics.add(sample_id, "epe_vals_oracle", epe_vals_oracle)
+                predictions_visu_uncertainty(image_1, gt_flow, pred_flow, flow_epe, flow_confidence, sample_id, 
+                                             os.path.join(args.out, "visu"), save_subplots=args.save_subplots)
+
+            compute_metrics(pred_flow, pred_flow_var, gt_flow, metrics, sample_id, flow_valid_mask=flow_valid_mask)
             print(f"Processed sample id={sample_id}")
     
     metrics.save_pickle(args.out)
-
-    epe_vals_mean = metrics.reduce_mean("epe_vals")
-    epe_vals_oracle_mean = metrics.reduce_mean("epe_vals_oracle")
-    sparsification_plot(epe_vals_mean, epe_vals_oracle_mean, output_path=args.out, label="RAFT-Uncertainty-V2")
+    reduce_metrics(metrics, args.out, args.label)
+    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--small', action="store_true", default=False, help="Use small version of RAFT")
-    parser.add_argument('--mixed_precision', action='store_true', default=False, help="Use mixed precision")
-    parser.add_argument('--alternate_corr', action='store_true', default=False, help="Use efficent correlation implementation")
     args = parser.parse_args()
 
-    args.iters = 24
-    args.uncertainty = False
-    args.residual_variance = False
+    args.small = False
+    args.mixed_precision = False
+    args.alternate_corr = False
+
+    args.iters = 32
+    args.label = "RAFT-Uncertainty-V2"
+    args.uncertainty = True
+    args.residual_variance = True
     args.log_variance = False
     # args.model = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_0_nll_loss_v1_log_variance/raft-chairs.pth'
     args.model = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_0_nll_loss_v2_residual_variance/raft-chairs.pth'
-    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/raft_uncertainty_v2'
+    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel_UPDATED/raft_uncertainty_v1'
     args.create_visu = True
+    args.save_subplots = True
 
     run(args)
