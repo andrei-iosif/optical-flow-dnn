@@ -176,3 +176,74 @@ def predictions_comparison_visu(img_1, gt_flow, flow_predictions, sample_id, out
         print(f"Saved frame {sample_id}")
     else:
         return fig
+    
+
+def save_img(img_data: np.ndarray, sample_id, label, output_path):
+    os.makedirs(os.path.join(output_path, label), exist_ok=True)
+    file_path = os.path.join(output_path, label, f"{sample_id}.png")
+
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+    cmap = "jet" if len(img_data.shape) < 3 else None
+    ax.imshow(img_data, cmap=cmap)
+    fig.savefig(file_path)
+    plt.close(fig)
+
+    print(f"Saved plot '{label}', sample id = {sample_id}")
+    
+
+def predictions_visu_uncertainty(img_1, gt_flow, pred_flow, gt_uncertainty, pred_uncertainty, sample_id, output_path, save_subplots=False):
+    """
+    Create visualization of input images, predicted optical flow and ground truth optical flow.
+
+    Args:
+        img1 (np.ndarray): First input image, with shape [3, H, W]
+        gt_flow (np.ndarray): Ground truth optical flow, with shape [2, H, W]
+        pred_flow (np.ndarray): Predicted optical flow, with shape [2, H, W]
+        gt_uncertainty (np.ndarray): Flow EPE image, shape [1, H, W]
+        pred_uncertainty (np.ndarray): Predicted flow variance, shape [1, H, W]
+        sample_id (int): Frame number
+        output_path (str): Path where the visu is saved
+    """
+    gt_flow_img = flow_to_color(gt_flow, channels_last=False)
+    pred_flow_img = flow_to_color(pred_flow, channels_last=False)
+
+    img_1 = img_1.transpose(1, 2, 0).astype(np.uint8)
+
+    height, width = img_1.shape[0], img_1.shape[1]
+    aspect_ratio = width / height
+
+    if save_subplots:
+        save_img(img_1, sample_id, "img_1", output_path)
+        save_img(gt_flow_img, sample_id, "gt_flow", output_path)
+        save_img(pred_flow_img, sample_id, "pred_flow", output_path)
+        save_img(gt_uncertainty, sample_id, "epe", output_path)
+        save_img(pred_uncertainty, sample_id, "flow_var", output_path)
+
+    fig, axes = plt.subplots(3, 2)
+
+    axes[0, 0].imshow(img_1)
+    axes[0, 0].set_title(f'Image 1', fontsize=25)
+
+    axes[0, 1].imshow(gt_flow_img)
+    axes[0, 1].set_title(f'Flow GT', fontsize=25)
+
+    axes[1, 0].imshow(gt_uncertainty, cmap='jet')
+    axes[1, 0].set_title(f'Flow EPE', fontsize=25)
+
+    axes[1, 1].imshow(pred_flow_img)
+    axes[1, 1].set_title(f'Predicted Flow', fontsize=25)
+
+    axes[2, 0].imshow(pred_uncertainty, cmap='jet')
+    axes[2, 0].set_title(f'Predicted Flow Confidence', fontsize=25)
+
+    axes[2, 1].axis('off')
+
+    if output_path is not None:
+        os.makedirs(output_path, exist_ok=True)
+        plt.subplots_adjust(wspace=0.05, hspace=0.05)
+        fig.set_size_inches(aspect_ratio * 5, 10)
+        fig.savefig(os.path.join(output_path, f"{sample_id}.png"), bbox_inches="tight", pad_inches=0.3, dpi=100)
+        plt.close()
+        print(f"Saved full plot for frame {sample_id}")
+    else:
+        return fig

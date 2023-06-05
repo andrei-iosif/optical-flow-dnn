@@ -28,17 +28,20 @@ def endpoint_error_numpy(flow_pred, flow_gt, valid_mask=None):
         EPE for each pixel, flattened to shape [H*W]
     """
     epe = np.sqrt(np.sum((flow_pred - flow_gt) ** 2, axis=0))
+
+    if valid_mask is not None:
+        return epe * valid_mask
     return epe
 
 
-def compute_metrics(pred_flow, pred_flow_var, gt_flow):
-    flow_epe = endpoint_error_numpy(pred_flow, gt_flow)
+def compute_metrics(pred_flow, pred_flow_var, gt_flow, flow_valid_mask=None):
+    flow_epe = endpoint_error_numpy(pred_flow, gt_flow, valid_mask=flow_valid_mask)
 
     u_flow_var, v_flow_var = pred_flow_var[0, :, :], pred_flow_var[1, :, :]
     flow_uncertainty =  (u_flow_var + v_flow_var) / 2
 
-    epe_vals_oracle = compute_sparsification_oracle(flow_epe)
-    epe_vals = compute_sparsification(flow_epe, flow_uncertainty)
+    epe_vals_oracle = compute_sparsification_oracle(flow_epe, flow_valid_mask)
+    epe_vals = compute_sparsification(flow_epe, flow_uncertainty, flow_valid_mask)
 
     return epe_vals, epe_vals_oracle
 
