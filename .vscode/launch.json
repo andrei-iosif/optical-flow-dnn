@@ -103,6 +103,14 @@
             "module": "core.evaluation.uncertainty.run_sparsification_error_plot",
             "args": [],
             "cwd": "${workspaceFolder}/raft"
+        },
+        {
+            "name": "Python: evaluate_models.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/raft/evaluate_models.py",
+            "args": [],
+            "cwd": "${workspaceFolder}/raft"         
         }
     ]
 }

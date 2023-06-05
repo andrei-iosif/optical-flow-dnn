@@ -24,10 +24,12 @@ class Metrics:
         sample = self.metrics[sample_id][metric_name]
         if isinstance(sample, np.ndarray):
             result_sum = np.zeros_like(sample)
-            num_samples = 0
+        elif isinstance(sample, np.float64):
+            result_sum = 0.0
         else:
             raise NotImplementedError(f"Reduce method not implemented for argument of type: {type(sample)}")
         
+        num_samples = 0
         for sample_id in self.metrics.keys():
             val = self.metrics[sample_id][metric_name]
             result_sum += val

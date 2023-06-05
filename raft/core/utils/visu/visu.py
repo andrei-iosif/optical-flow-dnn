@@ -185,7 +185,9 @@ def save_img(img_data: np.ndarray, sample_id, label, output_path):
     fig, ax = plt.subplots(nrows=1, ncols=1)
     cmap = "jet" if len(img_data.shape) < 3 else None
     ax.imshow(img_data, cmap=cmap)
-    fig.savefig(file_path)
+    ax.axis('off')
+
+    fig.savefig(file_path, bbox_inches='tight', pad_inches=0)
     plt.close(fig)
 
     print(f"Saved plot '{label}', sample id = {sample_id}")
@@ -220,21 +222,22 @@ def predictions_visu_uncertainty(img_1, gt_flow, pred_flow, gt_uncertainty, pred
         save_img(pred_uncertainty, sample_id, "flow_var", output_path)
 
     fig, axes = plt.subplots(3, 2)
+    font_size = 15
 
     axes[0, 0].imshow(img_1)
-    axes[0, 0].set_title(f'Image 1', fontsize=25)
+    axes[0, 0].set_title(f'Image 1', fontsize=font_size)
 
     axes[0, 1].imshow(gt_flow_img)
-    axes[0, 1].set_title(f'Flow GT', fontsize=25)
+    axes[0, 1].set_title(f'Flow GT', fontsize=font_size)
 
     axes[1, 0].imshow(gt_uncertainty, cmap='jet')
-    axes[1, 0].set_title(f'Flow EPE', fontsize=25)
+    axes[1, 0].set_title(f'Flow EPE', fontsize=font_size)
 
     axes[1, 1].imshow(pred_flow_img)
-    axes[1, 1].set_title(f'Predicted Flow', fontsize=25)
+    axes[1, 1].set_title(f'Predicted Flow', fontsize=font_size)
 
     axes[2, 0].imshow(pred_uncertainty, cmap='jet')
-    axes[2, 0].set_title(f'Predicted Flow Confidence', fontsize=25)
+    axes[2, 0].set_title(f'Predicted Flow Confidence', fontsize=font_size)
 
     axes[2, 1].axis('off')
 
