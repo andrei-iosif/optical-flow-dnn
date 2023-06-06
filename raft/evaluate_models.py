@@ -31,20 +31,20 @@ if __name__ == '__main__':
     parser.add_argument('--alternate_corr', action='store_true', help='use efficent correlaton implementation')
     args = parser.parse_args()
 
-    task = Task.init(project_name='RAFT Evaluation', task_name="raft_uncertainty_v3_evaluate_kitti", task_type=Task.TaskTypes.testing)
+    task = Task.init(project_name='RAFT Evaluation', task_name="raft_viper_evaluate_kitti", task_type=Task.TaskTypes.testing)
 
-    args.uncertainty = True
+    args.uncertainty = False
     args.residual_variance = False
-    args.log_variance = True
-    args.flow_variance_last_iter = True
+    args.log_variance = False
+    args.flow_variance_last_iter = False
 
-    model_path_1 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_0_uncertainty_v3/raft-chairs.pth'
-    model_path_2 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_42_uncertainty_v3/raft-chairs.pth'
-    model_path_3 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_1234_uncertainty_v3/raft-chairs.pth'
+    model_path_1 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_viper_seed_0_mixed/raft-viper.pth'
+    model_path_2 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_viper_seed_42_mixed/raft-viper.pth'
+    model_path_3 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_viper_seed_1234_mixed/raft-viper.pth'
         
     model_paths = [model_path_1, model_path_2, model_path_3]
 
-    results_sintel_total = {"clean_epe": [], "final_epe": []}
+    # results_sintel_total = {"clean_epe": [], "final_epe": []}
     results_kitti_total = {"epe": [], "fl-all": []}
 
     with torch.no_grad():
@@ -52,13 +52,13 @@ if __name__ == '__main__':
             model = load_model(args, path)
             print(f"Loaded model: {path}")
             
-            results_sintel = validate_sintel(model.module)
-            results_sintel_total["clean_epe"] += [results_sintel["clean"]]
-            results_sintel_total["final_epe"] += [results_sintel["final"]]
+            # results_sintel = validate_sintel(model.module)
+            # results_sintel_total["clean_epe"] += [results_sintel["clean"]]
+            # results_sintel_total["final_epe"] += [results_sintel["final"]]
 
             results_kitti = validate_kitti(model.module)
             results_kitti_total["epe"] += [results_kitti["kitti-epe"]]
             results_kitti_total["fl-all"] += [results_kitti["kitti-f1"]]
         
-        compute_mean_std(results_sintel_total)
+        # compute_mean_std(results_sintel_total)
         compute_mean_std(results_kitti_total)
