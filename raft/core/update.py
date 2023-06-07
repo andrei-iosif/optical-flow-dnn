@@ -247,6 +247,7 @@ class BasicUpdateBlock(nn.Module):
         # else:
         #     self.flow_head = FlowHead(hidden_dim, hidden_dim=256)
         self.flow_head = FlowHead(hidden_dim, hidden_dim=256)
+        self.flow_variance_head = FlowVarianceHead(hidden_dim, hidden_dim=256)
 
         # Upsampling mask decoder
         self.mask = nn.Sequential(
@@ -285,6 +286,7 @@ class BasicUpdateBlock(nn.Module):
 
         # Decode residual flow (and optionally, the uncertainty)
         delta_flow = self.flow_head(net)
+        flow_variance = self.flow_variance_head(net)
 
         # Not sure if this is really necessary
         # scale mask to balence gradients
@@ -293,4 +295,4 @@ class BasicUpdateBlock(nn.Module):
         # Decode upsampling mask
         mask = self.mask(net)
 
-        return net, mask, delta_flow
+        return net, mask, delta_flow, flow_variance
