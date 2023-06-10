@@ -86,13 +86,13 @@ if __name__ == '__main__':
     # args.model_path = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_things_seed_0/raft-things.pth'
 
     # Chairs + Things + Viper baseline
-    args.mixed_precision = True 
-    args.label = "raft_viper_seed_0_mixed"
-    args.model_path = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_viper_seed_0_mixed/raft-viper.pth'
+    # args.mixed_precision = True 
+    # args.label = "raft_viper_seed_0_mixed"
+    # args.model_path = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_viper_seed_0_mixed/raft-viper.pth'
 
     # Chairs + Things + Viper Semantic
-    # args.mixed_precision = True 
-    # args.label = "raft_viper_seed_0_mixed_semantic"
-    # args.model_path = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_semantic/train_raft_viper_semantic_loss_seed_0_mixed/raft-viper.pth'
+    args.mixed_precision = True 
+    args.label = "raft_viper_seed_0_mixed_semantic"
+    args.model_path = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_semantic/train_raft_viper_semantic_loss_seed_0_mixed/raft-viper.pth'
 
     run(args)
