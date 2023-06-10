@@ -32,24 +32,7 @@
             "type": "python",
             "request": "launch",
             "module": "core.utils.visu.run_inference_visu",
-            "args": [
-                "--model", "../checkpoints/raft_uncertainty/overfit_raft_chairs_100_sample_seed_0_nll_loss_v1_UPDATE/raft-chairs.pth",
-                "--out", "../dump/inference/uncertainty",
-                "--uncertainty"
-            ],
-            "cwd": "${workspaceFolder}/raft"
-        },
-        {
-            "name": "Python: run_inference_visu_comparison.py",
-            "type": "python",
-            "request": "launch",
-            "module": "core.utils.visu.run_inference_visu_comparison",
-            "args": [
-                "--model_1", "../checkpoints/raft_baseline/raft_chairs_seed_0/raft-chairs.pth",
-                "--model_2", "../checkpoints/raft_uncertainty/raft_chairs_seed_0_nll_loss_v1_log_variance/raft-chairs.pth",
-                "--model_3", "../checkpoints/raft_uncertainty/raft_chairs_seed_0_nll_loss_v2_residual_variance/raft-chairs.pth",
-                "--out", "../dump/inference/2023_05_20_uncertainty_comparison_chairs_val",
-            ],
+            "args": [],
             "cwd": "${workspaceFolder}/raft"
         },
         {
@@ -111,6 +94,22 @@
             "program": "${workspaceFolder}/raft/evaluate_models.py",
             "args": [],
             "cwd": "${workspaceFolder}/raft"         
-        }
+        },
+        {
+            "name": "Python: evaluate_models.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/raft/evaluate_models.py",
+            "args": [],
+            "cwd": "${workspaceFolder}/raft"         
+        },
+        {
+            "name": "Python: image_tiler.py",
+            "type": "python",
+            "request": "launch",
+            "module": "core.utils.visu.image_tiler",
+            "args": [],
+            "cwd": "${workspaceFolder}/raft"
+        },
     ]
 }
