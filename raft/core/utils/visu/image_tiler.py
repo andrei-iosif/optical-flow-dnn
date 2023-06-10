@@ -207,17 +207,19 @@ class ImageTilerDumper:
 def run_tiling_kitti():
     image_dir = r'/home/mnegru/repos/optical-flow-dnn/dump/visu/kitti/raft_chairs_seed_0/visu/img_1'
     gt_flow_dir = r'/home/mnegru/repos/optical-flow-dnn/dump/visu/kitti/raft_chairs_seed_0/visu/gt_flow'
-    pred_flow_dir_1 = r'/home/mnegru/repos/optical-flow-dnn/dump/visu/kitti/raft_chairs_seed_0/visu/pred_flow'
-    pred_flow_dir_2 = r'/home/mnegru/repos/optical-flow-dnn/dump/visu/kitti/raft_things_seed_0/visu/pred_flow'
-    pred_flow_dir_3 = r'/home/mnegru/repos/optical-flow-dnn/dump/visu/kitti/raft_viper_seed_0_mixed/visu/pred_flow'
-    pred_flow_dir_4 = r'/home/mnegru/repos/optical-flow-dnn/dump/visu/kitti/raft_viper_seed_0_mixed_semantic/visu/pred_flow'
+    pred_dir_1 = r'/home/mnegru/repos/optical-flow-dnn/dump/visu/kitti/raft_chairs_seed_0/visu'
+    pred_dir_2 = r'/home/mnegru/repos/optical-flow-dnn/dump/visu/kitti/raft_things_seed_0/visu'
+    pred_dir_3 = r'/home/mnegru/repos/optical-flow-dnn/dump/visu/kitti/raft_viper_seed_0_mixed/visu'
+    pred_dir_4 = r'/home/mnegru/repos/optical-flow-dnn/dump/visu/kitti/raft_viper_seed_0_mixed_semantic/visu'
     out_dir = r'/home/mnegru/repos/optical-flow-dnn/dump/visu/tiles/raft_baseline_and_semantic'
 
     ImageTilerDumper(
         [
             [image_dir, gt_flow_dir], 
-            [pred_flow_dir_1, pred_flow_dir_2], 
-            [pred_flow_dir_3, pred_flow_dir_4]
+            [os.path.join(pred_dir_1, "pred_flow"), os.path.join(pred_dir_1, "epe")], 
+            [os.path.join(pred_dir_2, "pred_flow"), os.path.join(pred_dir_2, "epe")], 
+            [os.path.join(pred_dir_3, "pred_flow"), os.path.join(pred_dir_3, "epe")], 
+            [os.path.join(pred_dir_4, "pred_flow"), os.path.join(pred_dir_4, "epe")], 
         ], out_dir).run()
 
 

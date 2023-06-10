@@ -21,6 +21,13 @@ def save_img(img_data: np.ndarray, sample_id, label, output_path):
     print(f"Saved plot '{label}', sample id = {sample_id}")
 
 
+def clamp_epe_image(epe_img, MAX_EPE=30):
+    epe_max = np.min(np.percentile(epe_img, 99.9), MAX_EPE)
+    epsilon = 1e-5
+    epe_img = epe_img / (epe_max + epsilon)
+    return epe_img
+
+
 def inputs_visu(img_1, gt_flow, valid_flow_mask=None, semseg_gt=None, sample_idx=-1, output_path=None):
     """
     Create visualization of input images, ground truth optical flow, and optionally, valid mask and/or
@@ -119,7 +126,7 @@ def predictions_visu(img_1, gt_flow, pred_flow, epe_img, sample_id, output_path,
     axes[1, 0].imshow(pred_flow_img)
     axes[1, 0].set_title(f'Predicted Flow', fontsize=font_size)
 
-    axes[1, 1].imshow(epe_img, cmap='jet', vmin=0, vmax=40)
+    axes[1, 1].imshow(epe_img, cmap='jet')
     axes[1, 1].set_title('Endpoint Error', fontsize=font_size)
 
     if output_path is not None:

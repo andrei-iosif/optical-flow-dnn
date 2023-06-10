@@ -5,7 +5,7 @@ import torch
 import core.datasets as datasets
 from core.raft import RAFT
 from core.utils.utils import InputPadder, endpoint_error_numpy
-from core.utils.visu.visu import predictions_visu
+from core.utils.visu.visu import predictions_visu, predictions_visu_uncertainty
 
 
 def load_model(args, model_path):
@@ -78,12 +78,12 @@ if __name__ == '__main__':
     args.output_path = r'/home/mnegru/repos/optical-flow-dnn/dump/visu'
 
     # Chairs baseline 
-    args.label = "raft_chairs_seed_0"
-    args.model_path = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_0/raft-chairs.pth'
+    # args.label = "raft_chairs_seed_0"
+    # args.model_path = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_0/raft-chairs.pth'
 
     # Chairs + Things baseline 
-    # args.label = "raft_things_seed_0"
-    # args.model_path = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_things_seed_0/raft-things.pth'
+    args.label = "raft_things_seed_0"
+    args.model_path = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_things_seed_0/raft-things.pth'
 
     # Chairs + Things + Viper baseline
     # args.mixed_precision = True 
