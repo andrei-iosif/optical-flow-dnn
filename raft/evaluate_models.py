@@ -49,7 +49,7 @@ def evaluate(model_paths, args):
 
 
 if __name__ == '__main__':
-    task = Task.init(project_name='RAFT Evaluation', task_name="raft_chairs_uncertainty_v2_evaluate_FINAL", task_type=Task.TaskTypes.testing)
+    task = Task.init(project_name='RAFT Evaluation', task_name="raft_chairs_uncertainty_v3_evaluate_FINAL", task_type=Task.TaskTypes.testing)
 
     parser = argparse.ArgumentParser()
     args = parser.parse_args()
@@ -94,11 +94,19 @@ if __name__ == '__main__':
     # model_path_3 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_1234_nll_loss_v1_log_variance/raft-chairs.pth'
 
     # RAFT-Uncertainty-V2
+    # args.uncertainty = True
+    # args.residual_variance = True
+    # model_path_1 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_0_nll_loss_v2_residual_variance/raft-chairs.pth'
+    # model_path_2 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_42_nll_loss_v2_residual_variance/raft-chairs.pth'
+    # model_path_3 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_1234_nll_loss_v2_residual_variance/raft-chairs.pth'
+
+    # RAFT-Uncertainty-V3
     args.uncertainty = True
-    args.residual_variance = True
-    model_path_1 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_0_nll_loss_v2_residual_variance/raft-chairs.pth'
-    model_path_2 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_42_nll_loss_v2_residual_variance/raft-chairs.pth'
-    model_path_3 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_1234_nll_loss_v2_residual_variance/raft-chairs.pth'
+    args.log_variance = True
+    args.flow_variance_last_iter = True
+    model_path_1 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_0_uncertainty_v3/raft-chairs.pth'
+    model_path_2 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_42_uncertainty_v3/raft-chairs.pth'
+    model_path_3 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_1234_uncertainty_v3/raft-chairs.pth'
 
     model_paths = [model_path_1, model_path_2, model_path_3]
 
