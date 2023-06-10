@@ -33,8 +33,8 @@ def create_sintel_submission(model, iters=32, warm_start=False, output_path='sin
             padder = InputPadder(image1.shape)
             image1, image2 = padder.pad(image1[None].cuda(), image2[None].cuda())
 
-            flow_low, flow_pr = model(image1, image2, iters=iters, flow_init=flow_prev, test_mode=True)
-            flow = padder.unpad(flow_pr[0]).permute(1, 2, 0).cpu().numpy()
+            _, pred_flow = model(image1, image2, iters=iters, flow_init=flow_prev, test_mode=True)
+            flow = padder.unpad(pred_flow[0]).permute(1, 2, 0).cpu().numpy()
 
             if warm_start:
                 flow_prev = forward_interpolate(flow_low[0])[None].cuda()
@@ -63,8 +63,8 @@ def create_kitti_submission(model, iters=24, output_path='kitti_submission'):
         padder = InputPadder(image1.shape, mode='kitti')
         image1, image2 = padder.pad(image1[None].cuda(), image2[None].cuda())
 
-        _, flow_pr = model(image1, image2, iters=iters, test_mode=True)
-        flow = padder.unpad(flow_pr[0]).permute(1, 2, 0).cpu().numpy()
+        _, pred_flow = model(image1, image2, iters=iters, test_mode=True)
+        flow = padder.unpad(pred_flow[0]).permute(1, 2, 0).cpu().numpy()
 
         output_filename = os.path.join(output_path, frame_id)
         frame_utils.writeFlowKITTI(output_filename, flow)
@@ -84,8 +84,8 @@ def validate_chairs(model, iters=24):
         image1 = image1[None].cuda()
         image2 = image2[None].cuda()
 
-        _, flow_pr = model(image1, image2, iters=iters, test_mode=True)
-        epe = torch.sum((flow_pr[0].cpu() - flow_gt)**2, dim=0).sqrt()
+        _, pred_flow = model(image1, image2, iters=iters, test_mode=True)
+        epe = torch.sum((pred_flow[0].cpu() - flow_gt)**2, dim=0).sqrt()
         epe_list.append(epe.view(-1).numpy())
 
     epe_all = np.concatenate(epe_list)
@@ -154,8 +154,8 @@ def validate_kitti(model, iters=24):
         padder = InputPadder(image1.shape, mode='kitti')
         image1, image2 = padder.pad(image1, image2)
 
-        _, flow_pr = model(image1, image2, iters=iters, test_mode=True)
-        flow = padder.unpad(flow_pr[0]).cpu()
+        _, pred_flow = model(image1, image2, iters=iters, test_mode=True)
+        flow = padder.unpad(pred_flow[0]).cpu()
 
         epe = torch.sum((flow - flow_gt)**2, dim=0).sqrt()
         mag = torch.sum(flow_gt**2, dim=0).sqrt()
@@ -277,8 +277,8 @@ def validate_viper(model, iters=24, subset_size=-1):
         padder = InputPadder(image1.shape)
         image1, image2 = padder.pad(image1, image2)
 
-        _, flow_pr = model(image1, image2, iters=iters, test_mode=True)
-        flow = padder.unpad(flow_pr[0]).cpu()
+        _, pred_flow = model(image1, image2, iters=iters, test_mode=True)
+        flow = padder.unpad(pred_flow[0]).cpu()
 
         epe = torch.sum((flow - flow_gt)**2, dim=0).sqrt()
         epe_list.append(epe.view(-1).cpu().numpy())

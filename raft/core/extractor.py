@@ -231,7 +231,7 @@ class BasicEncoder(nn.Module):
         x = self.conv2(x)
 
         # Optional dropout layer
-        if self.training and self.dropout is not None:
+        if self.dropout is not None:
             x = self.dropout(x)
 
         # If two images were given as input, split result feature maps on batch dimension

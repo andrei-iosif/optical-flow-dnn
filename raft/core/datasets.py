@@ -51,6 +51,7 @@ class FlowDataset(data.Dataset):
         self.obj_mask_list = []
 
     def __getitem__(self, index):
+        # Sintel and KITTI test submission
         if self.is_test:
             img1 = frame_utils.read_gen(self.image_list[index][0])
             img2 = frame_utils.read_gen(self.image_list[index][1])
@@ -79,6 +80,11 @@ class FlowDataset(data.Dataset):
             flow, valid = frame_utils.read_vkitti_png_flow(self.flow_list[index])
         else:
             flow = frame_utils.read_gen(self.flow_list[index])
+
+        # # Read flow uncertainty GT
+        # flow_uncertainty = None
+        # if self.has_uncertainty:
+        #     flow_uncertainty = frame_utils.read_flow_uncertainty(self.flow_uncertainty_list[index])
 
         # Read semseg GT
         semseg_1, semseg_2 = None, None
@@ -234,12 +240,13 @@ class KITTI(FlowDataset):
 
 class HD1K(FlowDataset):
     def __init__(self, aug_params=None, root='datasets/HD1K'):
-        super(HD1K, self).__init__(aug_params, sparse=True)
+        super(HD1K, self).__init__(aug_params, sparse=True, has_uncertainty=True)
 
         seq_ix = 0
         while True:
             flows = sorted(glob(os.path.join(root, 'hd1k_flow_gt', 'flow_occ/%06d_*.png' % seq_ix)))
             images = sorted(glob(os.path.join(root, 'hd1k_input', 'image_2/%06d_*.png' % seq_ix)))
+            flow_uncertainty = sorted(glob(os.path.join(root, 'hd1k_flow_uncertainty', 'flow_unc/%06d_*.png' % seq_ix)))
 
             if len(flows) == 0:
                 break
@@ -247,6 +254,7 @@ class HD1K(FlowDataset):
             for i in range(len(flows) - 1):
                 self.flow_list += [flows[i]]
                 self.image_list += [[images[i], images[i + 1]]]
+                self.flow_uncertainty_list += [flow_uncertainty[i]]
 
             seq_ix += 1
 

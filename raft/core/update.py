@@ -26,31 +26,32 @@ class FlowHeadWithUncertainty(nn.Module):
 
     If we assume the output flow has Gaussian distribution, we predict both the mean and the variance of that distribution.
     """
-    def __init__(self, input_dim=128, hidden_dim=256):
+    def __init__(self, input_dim=128, hidden_dim=256, log_variance=False):
         super(FlowHeadWithUncertainty, self).__init__()
+        self.log_variance = log_variance
+
         self.conv1 = nn.Conv2d(input_dim, hidden_dim, 3, padding=1)
 
         # Double the number of output channels => mean and variance for both flow components
         self.conv2 = nn.Conv2d(hidden_dim, 4, 3, padding=1)
         self.relu = nn.ReLU(inplace=True)
-        # self.softplus = nn.Softplus()
+
+        self.elu = nn.ELU()
 
     def forward(self, x):
         x = self.conv2(self.relu(self.conv1(x)))
-
         mean, var = x[:, :2, :, :], x[:, 2:, :, :]
 
-        # Variance is constrained to be positive => use softplus activation
-        # var = self.softplus(var)
-        # log_var = var
-        # var = nn.ELU()(var) + 1 + 1e-5
+        if self.log_variance:
+            # Predict log(var) => no special activation
+            return mean, var
+        else:
+            # Predict variance => need exponential activation to ensure positive values
+            # return mean, torch.exp(var)
 
-        # Predict log(var)
-
-        # Exponential activation
-        var = torch.exp(var)
-
-        return mean, var
+            # ELU activation
+            var = self.elu(var) + 1 + 1e-15
+            return mean, var
 
 
 class ConvGRU(nn.Module):
@@ -180,11 +181,16 @@ class BasicMotionEncoder(nn.Module):
 
 
 class SmallUpdateBlock(nn.Module):
-    def __init__(self, args, hidden_dim=96):
+    def __init__(self, args, hidden_dim=96, dropout=0.0):
         super(SmallUpdateBlock, self).__init__()
         self.encoder = SmallMotionEncoder(args)
         self.gru = ConvGRU(hidden_dim=hidden_dim, input_dim=82+64)
         self.flow_head = FlowHead(hidden_dim, hidden_dim=128)
+
+        # Optionally, add dropout
+        self.dropout = None
+        if dropout > 0:
+            self.dropout = nn.Dropout2d(p=dropout)
 
     def forward(self, net, inp, corr, flow):
         motion_features = self.encoder(flow, corr)
@@ -198,12 +204,13 @@ class SmallUpdateBlock(nn.Module):
 class BasicUpdateBlock(nn.Module):
     """ Update block used for iterative flow refinement in base RAFT. """
 
-    def __init__(self, args, hidden_dim=128, input_dim=128):
+    def __init__(self, args, hidden_dim=128, input_dim=128, dropout=0.0):
         """
         Args:
             args (argparse.Namespace): Command-line arguments
             hidden_dim (int, optional): Number of channels for ConvGRU hidden dimension. Defaults to 128.
             input_dim (int, optional): Number of channels for input dimension. Defaults to 128.
+            dropout (float, optional): Dropout probability. Defaults to 0.0
         """
         super(BasicUpdateBlock, self).__init__()
         self.args = args
@@ -215,7 +222,7 @@ class BasicUpdateBlock(nn.Module):
         self.gru = SepConvGRU(hidden_dim=hidden_dim, input_dim=128+hidden_dim)
 
         if self.args.uncertainty:
-            self.flow_head = FlowHeadWithUncertainty(hidden_dim, hidden_dim=256)
+            self.flow_head = FlowHeadWithUncertainty(hidden_dim, hidden_dim=256, log_variance=args.log_variance)
         else:
             self.flow_head = FlowHead(hidden_dim, hidden_dim=256)
 
@@ -224,9 +231,14 @@ class BasicUpdateBlock(nn.Module):
             nn.Conv2d(128, 256, 3, padding=1),
             nn.ReLU(inplace=True),
             nn.Conv2d(256, 64*9, 1, padding=0))
+        
+        # Optionally, add dropout
+        self.dropout = None
+        if dropout > 0:
+            self.dropout = nn.Dropout2d(p=dropout)
 
     def forward(self, net, context_fmap, corr, flow):
-        """ 
+        """ `
         Args:
             net (torch.Tensor): Hidden state of ConvGRU, shape [B, hidden_dim, H, W]
             context_fmap (torch.Tensor): Context feature map, shape [B, input_dim, H, W]
@@ -244,6 +256,10 @@ class BasicUpdateBlock(nn.Module):
 
         # Pass through GRU
         net = self.gru(net, context_fmap)
+
+        # Optional dropout layer applied on GRU hidden state
+        # if self.dropout is not None:
+        #     net = self.dropout(net)
 
         # Decode residual flow (and optionally, the uncertainty)
         delta_flow = self.flow_head(net)

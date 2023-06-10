@@ -163,3 +163,8 @@ def read_vkitti_png_flow(file_name):
   out_flow[..., 1] *= h - 1
   
   return out_flow, valid_mask
+
+
+def read_flow_uncertainty(file_name):
+    flow_uncertainty_img = cv2.imread(file_name, cv2.IMREAD_UNCHANGED)
+    return flow_uncertainty_img / 256.0
