@@ -16,16 +16,16 @@ from core.utils.random import set_random_seed, seed_worker
 
 
 class FlowDataset(data.Dataset):
-    def __init__(self, aug_params=None, sparse=False, use_semseg=False, from_npz=False, from_png=False, has_uncertainty=False):
+    def __init__(self, aug_params=None, sparse=False, use_semseg=False, from_npz=False, from_png=False, eval_mode=False):
         """ Constructor for FlowDataset class.
 
         Args:
-            aug_params (dict, optional): Parameters for image augmentation. Defaults to None.
-            sparse (bool, optional): If True, read sparse flow in KITTI format. Defaults to False.
-            use_semseg (bool, optional): If True, read also semantic segmentation GT. Defaults to False.
-            from_npz (bool, optional): If True, read flow from npz files (VIPER format). Defaults to False.
-            from_png (bool, optional): If True, read flow from png files (Virtual KITTI format). Defaults to False.
-            has_uncertainty (bool, optional): If True, read flow uncertainty (HD1K dataset). Defaults to False.
+            aug_params (_type_, optional): _description_. Defaults to None.
+            sparse (bool, optional): If true, read sparse flow in KITTI format. Defaults to False.
+            use_semseg (bool, optional): If true, read also semantic segmentation GT. Defaults to False.
+            from_npz (bool, optional): If true, read flow from npz files (VIPER format). Defaults to False.
+            from_png (bool, optional): If true, read flow from png files (Virtual KITTI format). Defaults to False.
+            eval_mode (bool, optional): If true, read additional data for evaluation (e.g. KITTI foreground objects mask)
         """
         self.augmentor = None
         self.sparse = sparse
@@ -47,8 +47,8 @@ class FlowDataset(data.Dataset):
         self.from_npz = from_npz
         self.from_png = from_png
 
-        self.has_uncertainty = has_uncertainty
-        self.flow_uncertainty_list = []
+        self.eval_mode = eval_mode
+        self.obj_mask_list = []
 
     def __getitem__(self, index):
         # Sintel and KITTI test submission
@@ -81,10 +81,10 @@ class FlowDataset(data.Dataset):
         else:
             flow = frame_utils.read_gen(self.flow_list[index])
 
-        # Read flow uncertainty GT
-        flow_uncertainty = None
-        if self.has_uncertainty:
-            flow_uncertainty = frame_utils.read_flow_uncertainty(self.flow_uncertainty_list[index])
+        # # Read flow uncertainty GT
+        # flow_uncertainty = None
+        # if self.has_uncertainty:
+        #     flow_uncertainty = frame_utils.read_flow_uncertainty(self.flow_uncertainty_list[index])
 
         # Read semseg GT
         semseg_1, semseg_2 = None, None
@@ -134,10 +134,16 @@ class FlowDataset(data.Dataset):
         else:
             valid = (flow[0].abs() < 1000) & (flow[1].abs() < 1000)
 
+        # Read foreground objects mask (for KITTI)
+        obj_mask = None
+        if self.eval_mode:
+            obj_mask = frame_utils.read_gen(self.obj_mask_list[index])
+            obj_mask = torch.from_numpy(np.array(obj_mask)).float()
+
         if self.use_semseg:
             return img1, img2, flow, valid.float(), semseg_1, semseg_2
-        elif self.has_uncertainty:
-            return img1, img2, flow, valid.float(), flow_uncertainty
+        elif obj_mask is not None:
+            return img1, img2, flow, valid.float(), obj_mask
         else:
             return img1, img2, flow, valid.float()
 
@@ -210,8 +216,8 @@ class FlyingThings3D(FlowDataset):
 
 
 class KITTI(FlowDataset):
-    def __init__(self, aug_params=None, split='training', root='datasets/KITTI'):
-        super(KITTI, self).__init__(aug_params, sparse=True)
+    def __init__(self, aug_params=None, split='training', root='datasets/KITTI', eval_mode=False):
+        super(KITTI, self).__init__(aug_params, sparse=True, eval_mode=eval_mode)
         if split == 'testing':
             self.is_test = True
 
@@ -226,6 +232,10 @@ class KITTI(FlowDataset):
 
         if split == 'training':
             self.flow_list = sorted(glob(osp.join(root, 'flow_occ/*_10.png')))
+
+        # For evaluation on different image regions, we also need the foreground objects mask
+        if eval_mode:
+            self.obj_mask_list = sorted(glob(osp.join(root, 'obj_map/*_10.png')))
 
 
 class HD1K(FlowDataset):

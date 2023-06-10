@@ -1,13 +1,11 @@
 import argparse
 import os
-import numpy as np
 import torch
 
 import core.datasets as datasets
 from core.utils.utils import InputPadder
-from core.evaluation.uncertainty.sparsification_plots import sparsification_plot
 from core.evaluation.metrics import Metrics
-from core.evaluation.uncertainty.utils import load_model, compute_metrics, compute_flow_variance_two_pass, get_flow_confidence
+from core.evaluation.uncertainty.utils import load_model, compute_metrics, compute_flow_variance_two_pass, get_flow_confidence, reduce_metrics
 from core.utils.visu.visu import predictions_visu
 
 
@@ -65,39 +63,37 @@ def run(args):
 
     with torch.no_grad():
         for sample_id in range(len(dataset)):
-            image_1, image_2, gt_flow, _ = dataset[sample_id]
+            image_1, image_2, gt_flow, flow_valid_mask = dataset[sample_id]
             gt_flow = gt_flow.cpu().numpy()
+            flow_valid_mask = flow_valid_mask.cpu().numpy()
            
             pred_flow, pred_flow_var = ensemble_inference(models, image_1, image_2, gt_flow, args, sample_id=sample_id)
 
-            epe_vals, epe_vals_oracle = compute_metrics(pred_flow, pred_flow_var, gt_flow)
-            metrics.add(sample_id, "epe_vals", epe_vals)
-            metrics.add(sample_id, "epe_vals_oracle", epe_vals_oracle)
+            compute_metrics(pred_flow, pred_flow_var, gt_flow, metrics, sample_id, flow_valid_mask=flow_valid_mask)
             print(f"Processed sample id={sample_id}")
     
     metrics.save_pickle(args.out)
-
-    epe_vals_mean = metrics.reduce_mean("epe_vals")
-    epe_vals_oracle_mean = metrics.reduce_mean("epe_vals_oracle")
-    sparsification_plot(epe_vals_mean, epe_vals_oracle_mean, output_path=args.out, label="RAFT-Ensemble-3")
+    reduce_metrics(metrics, args.out, args.label)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--small', action="store_true", default=False, help="Use small version of RAFT")
-    parser.add_argument('--mixed_precision', action='store_true', default=False, help="Use mixed precision")
-    parser.add_argument('--alternate_corr', action='store_true', default=False, help="Use efficent correlation implementation")
-    parser.add_argument('--out', help="Output path")
     args = parser.parse_args()
 
-    args.iters = 24
+    args.small = False
+    args.mixed_precision = False
+    args.alternate_corr = False
+
+    args.iters = 32
+    args.label = f"RAFT-Ensemble-3"
     args.uncertainty = False
     args.residual_variance = False
     args.log_variance = False
     args.model_1 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_0/raft-chairs.pth'
     args.model_2 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_42/raft-chairs.pth'
     args.model_3 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_1234/raft-chairs.pth'
-    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel/ensemble_3'
+    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel_UPDATED/ensemble_3'
     args.create_visu = True
+    args.save_subplots = True
 
     run(args)

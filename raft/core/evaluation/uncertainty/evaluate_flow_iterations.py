@@ -1,13 +1,11 @@
 import argparse
 import os
-import numpy as np
 import torch
 
 import core.datasets as datasets
 from core.utils.utils import InputPadder
-from core.evaluation.uncertainty.sparsification_plots import sparsification_plot
 from core.evaluation.metrics import Metrics
-from core.evaluation.uncertainty.utils import load_model, compute_metrics, compute_flow_variance_two_pass, get_flow_confidence, endpoint_error_numpy
+from core.evaluation.uncertainty.utils import load_model, compute_metrics, compute_flow_variance_two_pass, get_flow_confidence, endpoint_error_numpy, reduce_metrics
 from core.utils.visu.visu import predictions_visu_uncertainty
 
 
@@ -58,8 +56,8 @@ def run(args):
 
     # Load dataset
     # dataset = datasets.FlyingChairs(split='validation', root='/home/mnegru/repos/optical-flow-dnn/raft/datasets/FlyingChairs')
-    # dataset = datasets.MpiSintel(split='training', dstype='clean', root=r'/home/mnegru/repos/optical-flow-dnn/raft/datasets/Sintel')
-    dataset = datasets.KITTI(split='training', root='/home/mnegru/repos/optical-flow-dnn/raft/datasets/KITTI')
+    dataset = datasets.MpiSintel(split='training', dstype='clean', root=r'/home/mnegru/repos/optical-flow-dnn/raft/datasets/Sintel')
+    # dataset = datasets.KITTI(split='training', root='/home/mnegru/repos/optical-flow-dnn/raft/datasets/KITTI')
     print(f"Loaded dataset, size = {len(dataset)}")
 
     # Run inference
@@ -73,33 +71,29 @@ def run(args):
            
             pred_flow, pred_flow_var = inference(model, image_1, image_2, gt_flow, flow_valid_mask, args, sample_id=sample_id)
 
-            epe_vals, epe_vals_oracle = compute_metrics(pred_flow, pred_flow_var, gt_flow, flow_valid_mask)
-            metrics.add(sample_id, "epe_vals", epe_vals)
-            metrics.add(sample_id, "epe_vals_oracle", epe_vals_oracle)
+            compute_metrics(pred_flow, pred_flow_var, gt_flow, metrics, sample_id, flow_valid_mask=flow_valid_mask)
             print(f"Processed sample id={sample_id}")
     
     metrics.save_pickle(args.out)
-
-    epe_vals_mean = metrics.reduce_mean("epe_vals")
-    epe_vals_oracle_mean = metrics.reduce_mean("epe_vals_oracle")
-    sparsification_plot(epe_vals_mean, epe_vals_oracle_mean, output_path=args.out, label=f"RAFT-FlowIterations")
+    reduce_metrics(metrics, args.out, args.label)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--small', action="store_true", default=False, help="Use small version of RAFT")
-    parser.add_argument('--mixed_precision', action='store_true', default=False, help="Use mixed precision")
-    parser.add_argument('--alternate_corr', action='store_true', default=False, help="Use efficent correlation implementation")
-    parser.add_argument('--out', help="Output path")
     args = parser.parse_args()
 
-    args.iters = 24
+    args.small = False
+    args.mixed_precision = False
+    args.alternate_corr = False
+
+    args.iters = 32
+    args.label = "RAFT-FlowIterations"
     args.uncertainty = False
     args.residual_variance = False
     args.log_variance = False
     args.model = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_42/raft-chairs.pth'
-    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/KITTI/flow_iterations'
-    args.create_visu = False
-    args.save_subplots = False
+    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel_UPDATED/flow_iterations'
+    args.create_visu = True
+    args.save_subplots = True
 
     run(args)

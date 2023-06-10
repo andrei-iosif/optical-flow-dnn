@@ -128,3 +128,16 @@ python -u train.py --name raft_chairs_seed_0_uncertainty_v4 \
     --stage chairs --validation chairs \
     --gpus 0 --num_steps 100000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 \
     --seed 0 --uncertainty --debug_iter --log_variance
+
+# RAFT Semantic
+python -u train.py \
+    --name train_raft_viper_semantic_loss_seed_1234_mixed \
+    --restore_ckpt=../checkpoints/raft_baseline/raft_things_seed_1234/raft-things.pth \
+    --checkpoint_out=../checkpoints/raft_semantic/train_raft_viper_semantic_loss_seed_1234_mixed \
+    --stage viper --validation viper --validation_set_size 200 --gpus 0 \
+    --num_steps 100000 --batch_size 6 --lr 0.0001 \
+    --image_size 288 960 --wdecay 0.0001 \
+    --seed 1234 \
+    --mixed_precision \
+    --semantic_loss true \
+    --debug_iter
