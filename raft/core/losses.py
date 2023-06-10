@@ -188,8 +188,8 @@ class RaftSemanticLoss(nn.Module):
         gy = img[:, :-1, :] - img[:, 1:, :]
         return gx, gy
 
-    def get_semantic_smoothness_loss(self, flow_pred, semseg_gt_1, semseg_gt_2, flow_valid_mask):
-        """ Compute semantic smoothness loss, that ensures flow discontinuities are 
+    def get_semantic_guidance_loss(self, flow_pred, semseg_gt_1, semseg_gt_2, flow_valid_mask):
+        """ Compute semantic guidance loss, that ensures flow discontinuities are 
         correlated with semantic discontinuities.
 
         Args:
@@ -213,6 +213,7 @@ class RaftSemanticLoss(nn.Module):
         # Semseg gradients
         semseg_grad_x, semseg_grad_y = self.image_grads(semseg_gt_1)
 
+        ## OLD version: penalize flow discontinuities inside objects
         # If semseg gradient is zero => penalize flow discontinuities
         # If semseg gradient is not zero => no penalty
         semseg_weight_x = (semseg_grad_x.abs() < 1e-5).float()
@@ -220,6 +221,15 @@ class RaftSemanticLoss(nn.Module):
 
         loss_x = semseg_weight_x * torch.abs(u_flow_grad_x) + semseg_weight_x * torch.abs(v_flow_grad_x)
         loss_y = semseg_weight_y * torch.abs(u_flow_grad_y) + semseg_weight_y * torch.abs(v_flow_grad_y)
+
+        ## NEW version: penalize if there is no flow discontinuity at semantic boundary
+        # If semseg gradient is zero => no penalty
+        # If semseg gradient is not zero => larger penalty if flow discontinuity is small
+        # semseg_weight_x = (semseg_grad_x.abs() > 1e-5).float()
+        # semseg_weight_y = (semseg_grad_y.abs() > 1e-5).float()
+
+        # loss_x = semseg_weight_x * torch.exp(-torch.abs(u_flow_grad_x)) + semseg_weight_x * torch.exp(-torch.abs(v_flow_grad_x))
+        # loss_y = semseg_weight_y * torch.exp(-torch.abs(u_flow_grad_y)) + semseg_weight_y * torch.exp(-torch.abs(v_flow_grad_y))
 
         # Crop to same dimensions
         # loss_x [B, H, W-1] -> [B, H-1, W-1]
@@ -265,12 +275,12 @@ class RaftSemanticLoss(nn.Module):
             semantic_loss_list = []
             epe_list = []
 
-        # Compute L1 flow loss and semantic smoothness loss for each prediction in the sequence
+        # Compute L1 flow loss and semantic guidance loss for each prediction in the sequence
         for i in range(num_predictions):
             weight = self.gamma ** (num_predictions - i - 1)
             flow_loss = l1_loss_fixed(flow_preds[i], flow_gt, valid_mask)
             total_flow_loss += weight * flow_loss
-            semantic_loss = self.get_semantic_smoothness_loss(flow_preds[i], semseg_gt_1, semseg_gt_2, valid_mask)
+            semantic_loss = self.get_semantic_guidance_loss(flow_preds[i], semseg_gt_1, semseg_gt_2, valid_mask)
             total_semantic_loss += weight * semantic_loss
 
             # DEBUG MODE
