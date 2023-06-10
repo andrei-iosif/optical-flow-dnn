@@ -3,10 +3,10 @@ import os
 import torch
 
 import core.datasets as datasets
-from core.utils.utils import InputPadder
+from core.utils.utils import InputPadder, endpoint_error_numpy
 from core.evaluation.metrics import Metrics
 from core.evaluation.uncertainty.utils import load_model, compute_metrics, compute_flow_variance_two_pass, get_flow_confidence, reduce_metrics
-from core.utils.visu.visu import predictions_visu
+from core.utils.visu.visu import predictions_visu_uncertainty
 
 
 def enable_dropout(model):
@@ -15,7 +15,7 @@ def enable_dropout(model):
       m.train()
 
 
-def dropout_inference(model, num_inferences, image_1, image_2, gt_flow, args, sample_id=-1):
+def dropout_inference(model, num_inferences, image_1, image_2, gt_flow, flow_valid_mask, args, sample_id=-1):
     """ Run inference with dropout (equivalent to ensemble of models). Compute empirical mean and variance for optical flow.
     Optionally, create predictions visu (every 10th frame).
 
@@ -47,8 +47,11 @@ def dropout_inference(model, num_inferences, image_1, image_2, gt_flow, args, sa
 
     if args.create_visu and sample_id % 10 == 0:
         image_1 = image_1[0].cpu().numpy()
-        flow_confidence = get_flow_confidence(pred_flow_var)
-        predictions_visu(image_1, gt_flow, pred_flow, sample_id, os.path.join(args.out, "visu"), pred_flow_var=flow_confidence)
+        flow_var = get_flow_confidence(pred_flow_var)
+        flow_epe = endpoint_error_numpy(pred_flow, gt_flow, flow_valid_mask)
+        
+        predictions_visu_uncertainty(image_1, gt_flow, pred_flow, flow_epe, flow_var, sample_id, 
+                                    os.path.join(args.out, "visu"), save_subplots=args.save_subplots)
 
     return pred_flow_mean, pred_flow_var
 
@@ -60,7 +63,8 @@ def run(args):
 
     # Load dataset
     # dataset = datasets.FlyingChairs(split='validation', root='/home/mnegru/repos/optical-flow-dnn/raft/datasets/FlyingChairs')
-    dataset = datasets.MpiSintel(split='training', dstype='clean', root=r'/home/mnegru/repos/optical-flow-dnn/raft/datasets/Sintel')
+    # dataset = datasets.MpiSintel(split='training', dstype='clean', root=r'/home/mnegru/repos/optical-flow-dnn/raft/datasets/Sintel')
+    dataset = datasets.KITTI(split='training', root='/home/mnegru/repos/optical-flow-dnn/raft/datasets/KITTI')
     print(f"Loaded dataset, size = {len(dataset)}")
 
     # Run inference
@@ -72,7 +76,7 @@ def run(args):
             gt_flow = gt_flow.cpu().numpy()
             flow_valid_mask = flow_valid_mask.cpu().numpy()
            
-            pred_flow, pred_flow_var = dropout_inference(model, args.num_inferences, image_1, image_2, gt_flow, args, sample_id=sample_id)
+            pred_flow, pred_flow_var = dropout_inference(model, args.num_inferences, image_1, image_2, gt_flow, flow_valid_mask, args, sample_id=sample_id)
 
             compute_metrics(pred_flow, pred_flow_var, gt_flow, metrics, sample_id, flow_valid_mask=flow_valid_mask)
             print(f"Processed sample id={sample_id}")
@@ -92,12 +96,12 @@ if __name__ == '__main__':
     args.num_inferences = 3
     args.label = f"RAFT-Dropout-{args.num_inferences}"
     args.dropout = 0.2
-    args.iters = 32
+    args.iters = 24
     args.uncertainty = False
     args.residual_variance = False
     args.log_variance = False
     args.model = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_42_dropout_encoder_only/raft-chairs.pth'
-    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel_UPDATED/mc_dropout_3'
+    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/KITTI/mc_dropout_3'
     args.create_visu = True
     args.save_subplots = True
 
