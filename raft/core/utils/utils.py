@@ -105,3 +105,21 @@ def coords_grid(batch, ht, wd, device):
 def upflow8(flow, mode='bilinear'):
     new_size = (8 * flow.shape[2], 8 * flow.shape[3])
     return 8 * F.interpolate(flow, size=new_size, mode=mode, align_corners=True)
+
+
+def endpoint_error_numpy(flow_pred, flow_gt, valid_mask=None):
+    """ Compute EPE metric between predicted flow and GT flow.
+
+    Args:
+        flow_pred (np.ndarray): Predicted flow, shape [2, H, W]
+        flow_gt (np.ndarray): GT flow, shape [2, H, W]
+        valid_mask (np.ndarray, optional): Flow validity mask, shape [H, W]. Defaults to None.
+
+    Returns:
+        EPE for each pixel, flattened to shape [H*W]
+    """
+    epe = np.sqrt(np.sum((flow_pred - flow_gt) ** 2, axis=0))
+
+    if valid_mask is not None:
+        return epe * valid_mask
+    return epe

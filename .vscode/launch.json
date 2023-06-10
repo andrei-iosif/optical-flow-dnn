@@ -32,11 +32,7 @@
             "type": "python",
             "request": "launch",
             "module": "core.utils.visu.run_inference_visu",
-            "args": [
-                "--model", "../checkpoints/raft_viper/train_raft_viper_seed_1234_mixed/raft-viper.pth",
-                "--mixed_precision",
-                "--out", "../dump/inference/raft_viper_seed_1234_mixed_eval_kitti",
-            ],
+            "args": [],
             "cwd": "${workspaceFolder}/raft"
         },
         {
@@ -49,6 +45,22 @@
                 "--out", "/home/mnegru/repos/optical-flow-dnn/dump/input/chairs_dataset",
             ],
             "cwd": "${workspaceFolder}/raft"
-        }
+        },
+        {
+            "name": "Python: evaluate_models.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/raft/evaluate_models.py",
+            "args": [],
+            "cwd": "${workspaceFolder}/raft"         
+        },
+        {
+            "name": "Python: image_tiler.py",
+            "type": "python",
+            "request": "launch",
+            "module": "core.utils.visu.image_tiler",
+            "args": [],
+            "cwd": "${workspaceFolder}/raft"
+        },
     ]
 }

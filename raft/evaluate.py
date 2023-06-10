@@ -12,6 +12,7 @@ from core.utils import frame_utils
 
 from core.raft import RAFT
 from core.utils.utils import InputPadder, forward_interpolate
+from core.utils.metrics import Metrics
 from core.utils.random import set_random_seed
 
 from clearml import Task
@@ -87,9 +88,14 @@ def validate_chairs(model, iters=24):
         epe = torch.sum((flow_pr[0].cpu() - flow_gt)**2, dim=0).sqrt()
         epe_list.append(epe.view(-1).numpy())
 
-    epe = np.mean(np.concatenate(epe_list))
-    print("Validation Chairs EPE: %f" % epe)
-    return {'chairs': epe}
+    epe_all = np.concatenate(epe_list)
+    epe = np.mean(epe_all)
+    px1 = np.mean(epe_all < 1)
+    px3 = np.mean(epe_all < 3)
+    px5 = np.mean(epe_all < 5)
+
+    print(f"Validation Chairs: epe={epe}, 1px={px1}, 3px={px3}, 5px={px5}")
+    return {'val_epe': epe, 'val_1px': px1, 'val_3px': px3, 'val_5px': px5}
 
 
 @torch.no_grad()
@@ -111,7 +117,7 @@ def validate_sintel(model, iters=32):
             padder = InputPadder(image1.shape)
             image1, image2 = padder.pad(image1, image2)
 
-            flow_low, flow_pr = model(image1, image2, iters=iters, test_mode=True)
+            _, flow_pr = model(image1, image2, iters=iters, test_mode=True)
             flow = padder.unpad(flow_pr[0]).cpu()
 
             epe = torch.sum((flow - flow_gt)**2, dim=0).sqrt()
@@ -119,12 +125,15 @@ def validate_sintel(model, iters=32):
 
         epe_all = np.concatenate(epe_list)
         epe = np.mean(epe_all)
-        px1 = np.mean(epe_all<1)
-        px3 = np.mean(epe_all<3)
-        px5 = np.mean(epe_all<5)
+        px1 = np.mean(epe_all < 1)
+        px3 = np.mean(epe_all < 3)
+        px5 = np.mean(epe_all < 5)
 
         print("Validation (%s) EPE: %f, 1px: %f, 3px: %f, 5px: %f" % (dstype, epe, px1, px3, px5))
-        results[dstype] = np.mean(epe_list)
+        results[f"epe_{dstype}"] = np.mean(epe_list)
+        results[f"px1_{dstype}"] = px1
+        results[f"px3_{dstype}"] = px3
+        results[f"px5_{dstype}"] = px5
 
     return results
 
@@ -167,6 +176,68 @@ def validate_kitti(model, iters=24):
 
     print("Validation KITTI: %f, %f" % (epe, f1))
     return {'kitti-epe': epe, 'kitti-f1': f1}
+
+
+@torch.no_grad()
+def validate_kitti_full(model, iters=24):
+    """ Peform validation using the KITTI-2015 (train) split, with all metrics """
+    model.eval()
+    val_dataset = datasets.KITTI(split='training', eval_mode=True)
+    print(f"Validating on KITTI training (size = {len(val_dataset)})")
+
+    metrics = Metrics()
+    for val_id in range(len(val_dataset)):
+        image1, image2, flow_gt, valid_gt, obj_mask = val_dataset[val_id]
+        image1 = image1[None].cuda()
+        image2 = image2[None].cuda()
+
+        padder = InputPadder(image1.shape, mode='kitti')
+        image1, image2 = padder.pad(image1, image2)
+
+        _, flow_pr = model(image1, image2, iters=iters, test_mode=True)
+        flow = padder.unpad(flow_pr[0]).cpu()
+
+        # Compute EPE and magnitude of GT flow for all pixels (valid and invalid)
+        epe = torch.sum((flow - flow_gt)**2, dim=0).sqrt()
+        mag = torch.sum(flow_gt**2, dim=0).sqrt()
+        mag_vec = mag.view(-1)
+
+        # Mask for valid GT pixels (flattened)
+        val_mask_all = (valid_gt >= 0.5).view(-1)
+
+        # Mask for valid GT foreground pixels
+        val_mask_fg = ((valid_gt * obj_mask) >= 0.5).view(-1)
+
+        # Mask for valid GT background pixels
+        val_mask_bg = ((valid_gt * (1 - obj_mask)) >= 0.5).view(-1)
+
+        # EPE and magnitude of GT flow for each region
+        epe_vec = epe.view(-1)
+        epe_all = epe_vec[val_mask_all]
+        epe_fg = epe_vec[val_mask_fg]
+        epe_bg = epe_vec[val_mask_bg]
+
+        # Outlier percentage for each region
+        outlier_vec = ((epe_vec > 3.0) & ((epe_vec/mag_vec) > 0.05)).float()
+        outlier_all = outlier_vec[val_mask_all]
+        outlier_fg = outlier_vec[val_mask_fg]
+        outlier_bg = outlier_vec[val_mask_bg]
+
+        metrics.add("epe_all", epe_all.mean().item())
+        metrics.add("epe_fg", epe_fg.mean().item())
+        metrics.add("epe_bg", epe_bg.mean().item())
+
+        metrics.add("out_all", outlier_all.cpu().numpy())
+        metrics.add("out_fg", outlier_fg.cpu().numpy())
+        metrics.add("out_bg", outlier_bg.cpu().numpy())
+
+    metrics_mean = metrics.reduce_mean()
+    metrics_mean["fl_all"] = 100 * metrics_mean["out_all"]
+    metrics_mean["fl_fg"] = 100 * metrics_mean["out_fg"]
+    metrics_mean["fl_bg"] = 100 * metrics_mean["out_bg"]
+    
+    print(f"Validation KITTI: {metrics_mean}")
+    return metrics_mean
 
 
 @torch.no_grad()
