@@ -81,10 +81,10 @@ class FlowDataset(data.Dataset):
         else:
             flow = frame_utils.read_gen(self.flow_list[index])
 
-        # Read flow uncertainty GT
-        flow_uncertainty = None
-        if self.has_uncertainty:
-            flow_uncertainty = frame_utils.read_flow_uncertainty(self.flow_uncertainty_list[index])
+        # # Read flow uncertainty GT
+        # flow_uncertainty = None
+        # if self.has_uncertainty:
+        #     flow_uncertainty = frame_utils.read_flow_uncertainty(self.flow_uncertainty_list[index])
 
         # Read semseg GT
         semseg_1, semseg_2 = None, None
