@@ -62,13 +62,14 @@ if __name__ == '__main__':
     args.alternate_corr = False
 
     args.iters = 32
-    args.label = "RAFT-Uncertainty-V2"
+    args.label = "RAFT-Uncertainty-V4"
     args.uncertainty = True
-    args.residual_variance = True
-    args.log_variance = False
+    args.residual_variance = False
+    args.log_variance = True
     # args.model = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_0_nll_loss_v1_log_variance/raft-chairs.pth'
-    args.model = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_0_nll_loss_v2_residual_variance/raft-chairs.pth'
-    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel_UPDATED/raft_uncertainty_v1'
+    # args.model = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_0_nll_loss_v2_residual_variance/raft-chairs.pth'
+    args.model = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_uncertainty/raft_chairs_seed_0_uncertainty_v4/raft-chairs.pth'
+    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel_UPDATED/raft_uncertainty_v4'
     args.create_visu = True
     args.save_subplots = True
 

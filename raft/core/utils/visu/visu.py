@@ -246,7 +246,7 @@ def predictions_visu_uncertainty(img_1, gt_flow, pred_flow, gt_uncertainty, pred
     axes[1, 1].set_title(f'Predicted Flow', fontsize=font_size)
 
     axes[2, 0].imshow(pred_uncertainty, cmap='jet')
-    axes[2, 0].set_title(f'Predicted Flow Confidence', fontsize=font_size)
+    axes[2, 0].set_title(f'Predicted Flow Variance', fontsize=font_size)
 
     axes[2, 1].axis('off')
 
