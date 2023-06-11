@@ -63,8 +63,8 @@ def run(args):
 
     # Load dataset
     # dataset = datasets.FlyingChairs(split='validation', root='/home/mnegru/repos/optical-flow-dnn/raft/datasets/FlyingChairs')
-    # dataset = datasets.MpiSintel(split='training', dstype='clean', root=r'/home/mnegru/repos/optical-flow-dnn/raft/datasets/Sintel')
-    dataset = datasets.KITTI(split='training', root='/home/mnegru/repos/optical-flow-dnn/raft/datasets/KITTI')
+    dataset = datasets.MpiSintel(split='training', dstype='clean', root=r'/home/mnegru/repos/optical-flow-dnn/raft/datasets/Sintel')
+    # dataset = datasets.KITTI(split='training', root='/home/mnegru/repos/optical-flow-dnn/raft/datasets/KITTI')
     print(f"Loaded dataset, size = {len(dataset)}")
 
     # Run inference
@@ -96,12 +96,12 @@ if __name__ == '__main__':
     args.num_inferences = 3
     args.label = f"RAFT-Dropout-{args.num_inferences}"
     args.dropout = 0.2
-    args.iters = 24
+    args.iters = 32
     args.uncertainty = False
     args.residual_variance = False
     args.log_variance = False
     args.model = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_42_dropout_encoder_only/raft-chairs.pth'
-    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/KITTI/mc_dropout_3'
+    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel_UPDATED/mc_dropout_3'
     args.create_visu = True
     args.save_subplots = True
 

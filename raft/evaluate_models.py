@@ -49,7 +49,7 @@ def evaluate(model_paths, args):
 
 
 if __name__ == '__main__':
-    task = Task.init(project_name='RAFT Evaluation', task_name="raft_chairs_baseline_evaluate_FINAL", task_type=Task.TaskTypes.testing)
+    task = Task.init(project_name='RAFT Evaluation', task_name="raft_viper_semantic_evaluate_kitti_FINAL", task_type=Task.TaskTypes.testing)
 
     parser = argparse.ArgumentParser()
     args = parser.parse_args()
@@ -64,13 +64,13 @@ if __name__ == '__main__':
     args.flow_variance_last_iter = False
 
     args.eval_kitti = True
-    args.eval_sintel = True
-    args.eval_chairs = True
+    args.eval_sintel = False
+    args.eval_chairs = False
 
     # C baseline 
-    model_path_1 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_0/raft-chairs.pth'
-    model_path_2 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_42/raft-chairs.pth'
-    model_path_3 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_1234/raft-chairs.pth'
+    # model_path_1 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_0/raft-chairs.pth'
+    # model_path_2 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_42/raft-chairs.pth'
+    # model_path_3 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_1234/raft-chairs.pth'
 
     # C+T baseline 
     # model_path_1 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_things_seed_0/raft-things.pth'
@@ -83,8 +83,9 @@ if __name__ == '__main__':
     # model_path_3 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_viper_seed_1234_mixed/raft-viper.pth'
         
     # C+T+VIPER semantic
-    # model_path_1 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_semantic/train_raft_viper_semantic_loss_seed_0_mixed/raft-viper.pth'
-    # model_path_2 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_semantic/train_raft_viper_semantic_loss_seed_42_mixed/raft-viper.pth'
+    model_path_1 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_semantic/train_raft_viper_semantic_loss_seed_0_mixed/raft-viper.pth'
+    model_path_2 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_semantic/train_raft_viper_semantic_loss_seed_42_mixed/raft-viper.pth'
+    model_path_3 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_semantic/train_raft_viper_semantic_loss_seed_1234_mixed/raft-viper.pth'
 
     # RAFT-Uncertainty-V1
     # args.uncertainty = True

@@ -58,8 +58,8 @@ def run(args):
 
     # Load dataset
     # dataset = datasets.FlyingChairs(split='validation', root='/home/mnegru/repos/optical-flow-dnn/raft/datasets/FlyingChairs')
-    # dataset = datasets.MpiSintel(split='training', dstype='clean', root=r'/home/mnegru/repos/optical-flow-dnn/raft/datasets/Sintel')
-    dataset = datasets.KITTI(split='training', root='/home/mnegru/repos/optical-flow-dnn/raft/datasets/KITTI')
+    dataset = datasets.MpiSintel(split='training', dstype='clean', root=r'/home/mnegru/repos/optical-flow-dnn/raft/datasets/Sintel')
+    # dataset = datasets.KITTI(split='training', root='/home/mnegru/repos/optical-flow-dnn/raft/datasets/KITTI')
     print(f"Loaded dataset, size = {len(dataset)}")
 
     # Run inference
@@ -88,7 +88,7 @@ if __name__ == '__main__':
     args.mixed_precision = False
     args.alternate_corr = False
 
-    args.iters = 24
+    args.iters = 32
     args.label = f"RAFT-Ensemble-3"
     args.uncertainty = False
     args.residual_variance = False
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     args.model_1 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_0/raft-chairs.pth'
     args.model_2 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_42/raft-chairs.pth'
     args.model_3 = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_chairs_seed_1234/raft-chairs.pth'
-    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/KITTI/ensemble_3'
+    args.out = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel_UPDATED/ensemble_3'
     args.create_visu = True
     args.save_subplots = True
 

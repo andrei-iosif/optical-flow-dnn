@@ -41,8 +41,8 @@
             "request": "launch",
             "module": "core.utils.visu.run_dataset_visu",
             "args": [
-                "--dataset_root", "/home/mnegru/repos/optical-flow-dnn/raft/datasets/FlyingChairs",
-                "--out", "/home/mnegru/repos/optical-flow-dnn/dump/input/chairs_dataset",
+                "--dataset_root", "/home/mnegru/repos/optical-flow-dnn/raft/datasets/Sintel",
+                "--out", "/home/mnegru/repos/optical-flow-dnn/dump/input/sintel_dataset",
             ],
             "cwd": "${workspaceFolder}/raft"
         }

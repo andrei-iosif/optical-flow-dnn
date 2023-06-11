@@ -105,22 +105,34 @@
 #     --gpus 0 --num_steps 100000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 \
 #     --seed 42 --debug_iter --dropout 0.2
 
-python -u train.py --name raft_chairs_seed_42_nll_loss_v2_residual_variance \
-    --checkpoint_out=../checkpoints/raft_uncertainty/raft_chairs_seed_42_nll_loss_v2_residual_variance \
-    --stage chairs --validation chairs \
-    --gpus 0 --num_steps 100000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 \
-    --seed 42 --uncertainty --debug_iter --residual_variance
+# python -u train.py --name raft_chairs_seed_42_nll_loss_v2_residual_variance \
+#     --checkpoint_out=../checkpoints/raft_uncertainty/raft_chairs_seed_42_nll_loss_v2_residual_variance \
+#     --stage chairs --validation chairs \
+#     --gpus 0 --num_steps 100000 --batch_size 10 --lr 0.0004 --image_size 368 496 --wdecay 0.0001 \
+#     --seed 42 --uncertainty --debug_iter --residual_variance
 
 # RAFT Semantic
+# python -u train.py \
+#     --name train_raft_viper_semantic_loss_seed_1234_mixed_CONT \
+#     --restore_ckpt=../checkpoints/raft_semantic/train_raft_viper_semantic_loss_seed_1234_mixed/30000_raft-viper.pth \
+#     --checkpoint_out=../checkpoints/raft_semantic/train_raft_viper_semantic_loss_seed_1234_mixed \
+#     --stage viper --validation viper --validation_set_size 200 --gpus 0 \
+#     --num_steps 70000 --batch_size 6 --lr 0.0001 \
+#     --image_size 288 960 --wdecay 0.0001 \
+#     --seed 1234 \
+#     --mixed_precision \
+#     --semantic_loss true \
+#     --debug_iter
+
+
 python -u train.py \
-    --name train_raft_viper_semantic_loss_seed_1234_mixed \
-    --restore_ckpt=../checkpoints/raft_baseline/raft_things_seed_1234/raft-things.pth \
-    --checkpoint_out=../checkpoints/raft_semantic/train_raft_viper_semantic_loss_seed_1234_mixed \
-    --stage viper --validation viper --validation_set_size 200 --gpus 0 \
+    --name raft_virtual_kitti_semantic_loss_seed_0_mixed \
+    --restore_ckpt=../checkpoints/raft_baseline/raft_things_seed_0/raft-things.pth \
+    --checkpoint_out=../checkpoints/raft_semantic/train_raft_virtual_kitti_semantic_loss_seed_0 \
+    --stage virtual_kitti --validation kitti --gpus 0 \
     --num_steps 100000 --batch_size 6 --lr 0.0001 \
     --image_size 288 960 --wdecay 0.0001 \
-    --seed 1234 \
+    --seed 0 \
     --mixed_precision \
     --semantic_loss true \
     --debug_iter
-

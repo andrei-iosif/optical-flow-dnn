@@ -223,5 +223,29 @@ def run_tiling_kitti():
         ], out_dir).run()
 
 
+def run_tiling_sintel_uncertainty():
+    image_dir = r'/home/mnegru/repos/optical-flow-dnn/dump/visu/sintel/raft_chairs_seed_0/visu/img_1'
+    gt_flow_dir = r'/home/mnegru/repos/optical-flow-dnn/dump/visu/sintel/raft_chairs_seed_0/visu/gt_flow'
+    pred_dir_baseline = r'/home/mnegru/repos/optical-flow-dnn/dump/visu/sintel/raft_chairs_seed_0/visu/pred_flow'
+    pred_dir_1 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel_UPDATED/ensemble_3/visu'
+    pred_dir_2 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel_UPDATED/mc_dropout_3/visu'
+    pred_dir_3 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel_UPDATED/flow_iterations/visu'
+    pred_dir_4 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel_UPDATED/raft_uncertainty_v1/visu'
+    pred_dir_5 = r'/home/mnegru/repos/optical-flow-dnn/dump/uncertainty_evaluation_FINAL/Sintel_UPDATED/raft_uncertainty_v2/visu'
+    out_dir = r'/home/mnegru/repos/optical-flow-dnn/dump/visu/tiles/raft_chairs_uncertainty'
+
+    ImageTilerDumper(
+        [
+            [image_dir, gt_flow_dir, pred_dir_baseline], 
+            [os.path.join(pred_dir_1, "pred_flow"), os.path.join(pred_dir_1, "flow_var"), os.path.join(pred_dir_1, "epe")], 
+            [os.path.join(pred_dir_2, "pred_flow"), os.path.join(pred_dir_2, "flow_var"), os.path.join(pred_dir_2, "epe")], 
+            [os.path.join(pred_dir_3, "pred_flow"), os.path.join(pred_dir_3, "flow_var"), os.path.join(pred_dir_3, "epe")], 
+            [os.path.join(pred_dir_4, "pred_flow"), os.path.join(pred_dir_4, "flow_var"), os.path.join(pred_dir_4, "epe")], 
+            [os.path.join(pred_dir_5, "pred_flow"), os.path.join(pred_dir_5, "flow_var"), os.path.join(pred_dir_5, "epe")], 
+
+        ], out_dir).run()
+    
+
 if __name__ == '__main__':
-    run_tiling_kitti()
+    # run_tiling_kitti()
+    run_tiling_sintel_uncertainty()
