@@ -91,8 +91,16 @@ if __name__ == '__main__':
     # args.model_path = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_viper_seed_0_mixed/raft-viper.pth'
 
     # Chairs + Things + Viper Semantic
-    args.mixed_precision = True 
-    args.label = "raft_viper_seed_0_mixed_semantic"
-    args.model_path = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_semantic/train_raft_viper_semantic_loss_seed_0_mixed/raft-viper.pth'
+    # args.mixed_precision = True 
+    # args.label = "raft_viper_seed_0_mixed_semantic"
+    # args.model_path = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_semantic/train_raft_viper_semantic_loss_seed_0_mixed/raft-viper.pth'
+
+    # Chairs + Things + Virtual KITTI baseline
+    # args.label = "raft_virtual_kitti_seed_0_mixed"
+    # args.model_path = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_baseline/raft_virtual_kitti_baseline_seed_0_mixed/raft-virtual_kitti.pth'
+
+    # Chairs + Things + Virtual KITTI semantic
+    args.label = "raft_virtual_kitti_seed_0_mixed_semantic"
+    args.model_path = r'/home/mnegru/repos/optical-flow-dnn/checkpoints/raft_semantic/train_raft_virtual_kitti_semantic_loss_seed_0/raft-virtual_kitti.pth'
 
     run(args)

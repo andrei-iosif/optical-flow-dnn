@@ -125,14 +125,105 @@
 #     --debug_iter
 
 
+# python -u train.py \
+#     --name raft_virtual_kitti_semantic_loss_seed_0_mixed \
+#     --restore_ckpt=../checkpoints/raft_baseline/raft_things_seed_0/raft-things.pth \
+#     --checkpoint_out=../checkpoints/raft_semantic/train_raft_virtual_kitti_semantic_loss_seed_0 \
+#     --stage virtual_kitti --validation kitti --gpus 0 \
+#     --num_steps 100000 --batch_size 6 --lr 0.0001 \
+#     --image_size 288 960 --wdecay 0.0001 \
+#     --seed 0 \
+#     --mixed_precision \
+#     --semantic_loss true \
+#     --debug_iter
+
+# python -u train.py \
+#     --name raft_virtual_kitti_semantic_loss_seed_42_mixed \
+#     --restore_ckpt=../checkpoints/raft_baseline/raft_things_seed_42/raft-things.pth \
+#     --checkpoint_out=../checkpoints/raft_semantic/train_raft_virtual_kitti_semantic_loss_seed_42 \
+#     --stage virtual_kitti --validation kitti --gpus 0 \
+#     --num_steps 100000 --batch_size 6 --lr 0.0001 \
+#     --image_size 288 960 --wdecay 0.0001 \
+#     --seed 42 \
+#     --mixed_precision \
+#     --semantic_loss true \
+#     --debug_iter
+
+# python -u train.py \
+#     --name raft_virtual_kitti_semantic_loss_seed_1234_mixed \
+#     --restore_ckpt=../checkpoints/raft_baseline/raft_things_seed_1234/raft-things.pth \
+#     --checkpoint_out=../checkpoints/raft_semantic/train_raft_virtual_kitti_semantic_loss_seed_1234 \
+#     --stage virtual_kitti --validation kitti --gpus 0 \
+#     --num_steps 100000 --batch_size 6 --lr 0.0001 \
+#     --image_size 288 960 --wdecay 0.0001 \
+#     --seed 1234 \
+#     --mixed_precision \
+#     --semantic_loss true \
+#     --debug_iter
+
+# python -u train.py \
+#     --name raft_virtual_kitti_baseline_seed_0_mixed \
+#     --restore_ckpt=../checkpoints/raft_baseline/raft_things_seed_0/raft-things.pth \
+#     --checkpoint_out=../checkpoints/raft_baseline/raft_virtual_kitti_baseline_seed_0_mixed \
+#     --stage virtual_kitti --validation kitti --gpus 0 \
+#     --num_steps 100000 --batch_size 6 --lr 0.0001 \
+#     --image_size 288 960 --wdecay 0.0001 \
+#     --seed 0 \
+#     --mixed_precision \
+#     --debug_iter
+
+# python -u train.py \
+#     --name raft_virtual_kitti_baseline_seed_42_mixed \
+#     --restore_ckpt=../checkpoints/raft_baseline/raft_things_seed_42/raft-things.pth \
+#     --checkpoint_out=../checkpoints/raft_baseline/raft_virtual_kitti_baseline_seed_42_mixed \
+#     --stage virtual_kitti --validation kitti --gpus 0 \
+#     --num_steps 100000 --batch_size 6 --lr 0.0001 \
+#     --image_size 288 960 --wdecay 0.0001 \
+#     --seed 42 \
+#     --mixed_precision \
+#     --debug_iter
+
+# python -u train.py \
+#     --name raft_virtual_kitti_baseline_seed_1234_mixed \
+#     --restore_ckpt=../checkpoints/raft_baseline/raft_things_seed_1234/raft-things.pth \
+#     --checkpoint_out=../checkpoints/raft_baseline/raft_virtual_kitti_baseline_seed_1234_mixed \
+#     --stage virtual_kitti --validation kitti --gpus 0 \
+#     --num_steps 100000 --batch_size 6 --lr 0.0001 \
+#     --image_size 288 960 --wdecay 0.0001 \
+#     --seed 1234 \
+#     --mixed_precision \
+#     --debug_iter
+
+
 python -u train.py \
-    --name raft_virtual_kitti_semantic_loss_seed_0_mixed \
-    --restore_ckpt=../checkpoints/raft_baseline/raft_things_seed_0/raft-things.pth \
-    --checkpoint_out=../checkpoints/raft_semantic/train_raft_virtual_kitti_semantic_loss_seed_0 \
+    --name raft_viper_virtual_kitti_baseline_seed_0_mixed \
+    --restore_ckpt=../checkpoints/raft_baseline/raft_viper_seed_0_mixed/raft-viper.pth \
+    --checkpoint_out=../checkpoints/raft_baseline/raft_viper_virtual_kitti_baseline_seed_0_mixed \
     --stage virtual_kitti --validation kitti --gpus 0 \
     --num_steps 100000 --batch_size 6 --lr 0.0001 \
     --image_size 288 960 --wdecay 0.0001 \
     --seed 0 \
     --mixed_precision \
-    --semantic_loss true \
+    --debug_iter
+
+python -u train.py \
+    --name raft_viper_virtual_kitti_baseline_seed_42_mixed \
+    --restore_ckpt=../checkpoints/raft_baseline/raft_viper_seed_42_mixed/raft-viper.pth \
+    --checkpoint_out=../checkpoints/raft_baseline/raft_viper_virtual_kitti_baseline_seed_42_mixed \
+    --stage virtual_kitti --validation kitti --gpus 0 \
+    --num_steps 100000 --batch_size 6 --lr 0.0001 \
+    --image_size 288 960 --wdecay 0.0001 \
+    --seed 42 \
+    --mixed_precision \
+    --debug_iter
+
+python -u train.py \
+    --name raft_viper_virtual_kitti_baseline_seed_1234_mixed \
+    --restore_ckpt=../checkpoints/raft_baseline/raft_viper_seed_1234_mixed/raft-viper.pth \
+    --checkpoint_out=../checkpoints/raft_baseline/raft_viper_virtual_kitti_baseline_seed_1234_mixed \
+    --stage virtual_kitti --validation kitti --gpus 0 \
+    --num_steps 100000 --batch_size 6 --lr 0.0001 \
+    --image_size 288 960 --wdecay 0.0001 \
+    --seed 1234 \
+    --mixed_precision \
     --debug_iter
